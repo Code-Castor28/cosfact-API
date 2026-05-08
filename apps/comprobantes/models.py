@@ -23,7 +23,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from apps.sequences.models import TIPOS_ECF, TIPO_ECF_CHOICES
+from sequences.models import TIPOS_ECF, TIPO_ECF_CHOICES
 
 
 # Tipos que requieren comprobante de referencia (nota de crédito/débito)

@@ -62,7 +62,7 @@ class ApiKey(models.Model):
 
     # Scopes: qué puede hacer esta key. JSON list de strings.
     # Ej: ["comprobantes:crear", "comprobantes:consultar", "secuenciales:consultar"]
-    scopes = models.JSONField(default=list)
+    scopes =  models.JSONField(default=list, blank=True)
 
     # IPs permitidas. Lista vacía = todas las IPs permitidas.
     # Guardar como lista de strings validados con ipaddress.
