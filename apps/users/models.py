@@ -49,7 +49,21 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         blank=True,
         related_name="usuarios",
     )
-
+    # Agregar estos dos — resuelven el clash con auth.User
+    groups = models.ManyToManyField(
+        'auth.Group',
+        verbose_name='groups',
+        blank=True,
+        related_name='usuarios_set',       # ← diferente al 'user_set' de auth.User
+        related_query_name='usuario',
+    )
+    user_permissions = models.ManyToManyField(
+        'auth.Permission',
+        verbose_name='user permissions',
+        blank=True,
+        related_name='usuarios_set',       # ← diferente al 'user_set' de auth.User
+        related_query_name='usuario',
+    )
     email = models.EmailField(unique=True)
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
