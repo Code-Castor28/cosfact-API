@@ -36,7 +36,7 @@ SECRET_KEY = env('SECRET_KEY')
 DEBUG = env('DEBUG')
 
 # ─── Usuario custom ────────────────────────────────────────────────────────────ojo
-# AUTH_USER_MODEL = 'users.Usuario'
+AUTH_USER_MODEL = 'users.Usuario'
 
 # --- CONFIGURACIÓN DE APPS ---
 # Esto permite que Django encuentre tus apps dentro de la carpeta /apps
