@@ -1,0 +1,76 @@
+{% extends "users/base.html" %}
+{% block title %}Dashboard — {{ empresa.razon_social }}{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block page_title %}{{ empresa.razon_social }}{% endblock %}
+{% block page_subtitle %}{{ empresa.rnc }} · {{ empresa.get_ambiente_display }}{% endblock %}
+
+{% block content %}
+
+{% if paquete_activo %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Comprobantes disponibles</div>
+        <div class="stat-value accent">{{ paquete_activo.comprobantes_restantes }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Comprobantes usados</div>
+        <div class="stat-value">{{ paquete_activo.comprobantes_usados }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Total del paquete</div>
+        <div class="stat-value">{{ paquete_activo.total_comprobantes }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">API Keys activas</div>
+        <div class="stat-value green">{{ api_keys.count }}</div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-error">Esta empresa no tiene un paquete de comprobantes activo.</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-title">Últimos comprobantes</div>
+    {% if comprobantes_recientes %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>e-NCF</th>
+                    <th>Tipo</th>
+                    <th>Receptor</th>
+                    <th>Total</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in comprobantes_recientes %}
+                <tr>
+                    <td class="mono" style="font-size:13px;">{{ c.encf|default:"—" }}</td>
+                    <td><span class="badge badge-blue">{{ c.tipo_ecf }}</span></td>
+                    <td style="color:var(--text-dim);">{{ c.razon_social_comprador|default:"—"|truncatechars:25 }}</td>
+                    <td class="mono">RD$ {{ c.monto_total }}</td>
+                    <td>
+                        <span class="badge
+                            {% if c.estado == 'ACEPTADO' %}badge-green
+                            {% elif c.estado == 'RECHAZADO' %}badge-red
+                            {% elif c.estado == 'PENDIENTE' or c.estado == 'PROCESANDO' %}badge-yellow
+                            {% else %}badge-gray{% endif %}">
+                            {{ c.estado }}
+                        </span>
+                    </td>
+                    <td class="mono" style="color:var(--text-dim);font-size:12px;">
+                        {{ c.creado_at|date:"d/m/Y h:i" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p style="color:var(--text-dim);font-size:14px;">No hay comprobantes emitidos todavía.</p>
+    {% endif %}
+</div>
+
+{% endblock %}
