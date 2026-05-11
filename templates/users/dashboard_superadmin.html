@@ -1,0 +1,66 @@
+{% extends "users/base.html" %}
+{% block title %}Dashboard — DerejFact{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Vista general del sistema{% endblock %}
+
+{% block content %}
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Empresas activas</div>
+        <div class="stat-value accent">{{ total_empresas }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Usuarios del sistema</div>
+        <div class="stat-value">{{ total_usuarios }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Comprobantes emitidos</div>
+        <div class="stat-value green">{{ total_comprobantes }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title">Empresas registradas recientemente</div>
+    {% if empresas_recientes %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>RNC</th>
+                    <th>Razón Social</th>
+                    <th>Ambiente</th>
+                    <th>Estado</th>
+                    <th>Creada</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for empresa in empresas_recientes %}
+                <tr>
+                    <td class="mono">{{ empresa.rnc }}</td>
+                    <td>{{ empresa.razon_social }}</td>
+                    <td>
+                        <span class="badge {% if empresa.ambiente == 'ecf' %}badge-green{% else %}badge-yellow{% endif %}">
+                            {{ empresa.get_ambiente_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge {% if empresa.estado == 'ACTIVA' %}badge-green{% else %}badge-red{% endif %}">
+                            {{ empresa.estado }}
+                        </span>
+                    </td>
+                    <td class="mono" style="color:var(--text-dim);font-size:12px;">
+                        {{ empresa.creado_at|date:"d/m/Y" }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+        <p style="color:var(--text-dim);font-size:14px;">No hay empresas registradas todavía.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "users/base.html" %}
+{% block title %}Mi perfil — DerejFact{% endblock %}
+{% block nav_perfil %}active{% endblock %}
+{% block page_title %}Mi perfil{% endblock %}
+{% block page_subtitle %}Información de tu cuenta{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:800px;">
+
+    <div class="card">
+        <div class="card-title">Datos personales</div>
+        <table style="width:100%;">
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;width:40%;">NOMBRE</td>
+                <td style="padding:8px 0;">{{ usuario.nombre_completo }}</td>
+            </tr>
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;">EMAIL</td>
+                <td style="padding:8px 0;font-family:var(--mono);font-size:13px;">{{ usuario.email }}</td>
+            </tr>
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;">ROL</td>
+                <td style="padding:8px 0;">
+                    <span class="badge badge-blue">{{ usuario.rol }}</span>
+                </td>
+            </tr>
+            {% if usuario.empresa %}
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;">EMPRESA</td>
+                <td style="padding:8px 0;">{{ usuario.empresa.razon_social }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card-title">Seguridad</div>
+        <table style="width:100%;">
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;width:50%;">ÚLTIMO ACCESO</td>
+                <td style="padding:8px 0;font-size:13px;">{{ usuario.last_login|date:"d/m/Y H:i"|default:"Primera sesión" }}</td>
+            </tr>
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;">ÚLTIMA IP</td>
+                <td style="padding:8px 0;font-family:var(--mono);font-size:13px;">{{ usuario.ultimo_login_ip|default:"—" }}</td>
+            </tr>
+            <tr>
+                <td style="color:var(--text-dim);font-size:12px;font-family:var(--mono);padding:8px 0;">CUENTA DESDE</td>
+                <td style="padding:8px 0;font-size:13px;">{{ usuario.creado_at|date:"d/m/Y" }}</td>
+            </tr>
+        </table>
+
+        <div style="margin-top:20px;">
+            <a href="{% url 'users:cambiar_password' %}" class="btn btn-ghost">Cambiar contraseña</a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
