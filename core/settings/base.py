@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'dgii',
     'webhooks',
     'audit',
+    'rest_framework_simplejwt',
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ─── DRF ──────────────────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'api_keys.authentication.ApiKeyAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
@@ -193,3 +195,12 @@ AUTH_PASSWORD_VALIDATORS = [
 # ─── Sesiones ─────────────────────────────────────────────────────────────────
 SESSION_COOKIE_AGE = 28800          # 8 horas (no semanas)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+from datetime import timedelta
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}

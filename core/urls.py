@@ -24,6 +24,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', lambda request: redirect('users:login'), name='home'),
     path('', include('users.urls')),
+    
+    # --- API ---
+    path('api/v1/users/', include('users.api_urls', namespace='users_api')),
 ]
 # Solo en desarrollo: permitir que Django sirva archivos media y static
 if settings.DEBUG:
