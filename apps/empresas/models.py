@@ -115,7 +115,7 @@ class TokenDGII(models.Model):
     SEGURIDAD: El token se guarda CIFRADO con Fernet (AES-128-CBC + HMAC-SHA256).
     La clave Fernet (FERNET_KEY) debe estar en variables de entorno del servidor,
     nunca en el código ni en la DB.
-    Para cifrar/descifrar usar apps.empresas.crypto.cifrar_token / descifrar_token
+    Para cifrar/descifrar usar empresas.crypto.cifrar / descifrar
     """
     empresa = models.ForeignKey(
         Empresa,
