@@ -24,7 +24,7 @@ urlpatterns = [
 
     # --- API ---
     path('api/v1/users/', include('users.urls', namespace='users')),
-    path('api/v1/empresas/', include('empresas.api_urls', namespace='empresas_api')),
+    path('api/v1/empresas/', include('empresas.urls', namespace='empresas')),
     path('api/v1/api-keys/', include('api_keys.urls', namespace='api_keys')),
     path('api/v1/subscriptions/', include('subscriptions.urls', namespace='subscriptions')),
     path('api/v1/sequences/', include('sequences.urls', namespace='sequences')),
