@@ -2,8 +2,11 @@ from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin import AdminSite
 from django.urls import path
+from django.urls import reverse
 from django.shortcuts import render
 from django import forms
+from django.utils.html import format_html
+from urllib.parse import urlencode
 from .models import ApiKey
 from empresas.models import Empresa
 
@@ -22,10 +25,10 @@ class CrearApiKeyForm(forms.Form):
     )
     scopes = forms.MultipleChoiceField(
         choices=[
-            ('comprobantes:crear', 'Emitir comprobantes'),
-            ('comprobantes:consultar', 'Consultar comprobantes'),
-            ('comprobantes:anular', 'Anular comprobantes'),
-            ('secuenciales:consultar', 'Consultar secuenciales'),
+            ("comprobantes:crear", "Emitir comprobantes"),
+            ("comprobantes:consultar", "Consultar comprobantes"),
+            ("comprobantes:anular", "Anular comprobantes"),
+            ("secuenciales:consultar", "Consultar secuenciales"),
         ],
         widget=forms.CheckboxSelectMultiple,
         label='Permisos (scopes)'
@@ -94,6 +97,7 @@ def crear_api_key_view(request):
 
 _original_get_urls = AdminSite.get_urls
 
+
 def _custom_get_urls(self):
     urls = _original_get_urls(self)
     custom = [
@@ -105,6 +109,7 @@ def _custom_get_urls(self):
     ]
     return custom + urls
 
+
 AdminSite.get_urls = _custom_get_urls
 
 
@@ -112,10 +117,12 @@ AdminSite.get_urls = _custom_get_urls
 
 _original_index = AdminSite.index
 
+
 def _custom_index(self, request, extra_context=None):
     extra_context = extra_context or {}
     extra_context['crear_api_key_url'] = '/admin/api-keys/crear/'
     return _original_index(self, request, extra_context)
+
 
 AdminSite.index = _custom_index
 
@@ -127,7 +134,7 @@ class ApiKeyAdmin(admin.ModelAdmin):
     list_display = [
         'nombre', 'empresa', 'prefix', 'activa',
         'rate_limit_cantidad', 'rate_limit_ventana',
-        'ultimo_uso_at', 'creado_at'
+        'ultimo_uso_at', 'creado_at', 'ver_auditoria'
     ]
     list_filter = ['activa', 'rate_limit_ventana']
     search_fields = ['empresa__rnc', 'nombre', 'prefix']
@@ -143,9 +150,18 @@ class ApiKeyAdmin(admin.ModelAdmin):
     def revocar_keys(self, request, queryset):
         revocadas = 0
         for key in queryset.filter(activa=True):
-            key.revocar(revocado_por=request.user, motivo='Revocada desde el admin')
+            key.revocar(revocado_por=request.user,
+                        motivo='Revocada desde el admin')
             revocadas += 1
-        self.message_user(request, f'{revocadas} API Key(s) revocadas.', messages.SUCCESS)
+        self.message_user(
+            request, f'{revocadas} API Key(s) revocadas.', messages.SUCCESS)
 
     revocar_keys.short_description = 'Revocar API Keys seleccionadas'
     actions = ['revocar_keys']
+
+    def ver_auditoria(self, obj):
+        base_url = reverse("admin:audit_auditlog_changelist")
+        query = urlencode({"api_key_prefix": obj.prefix})
+        return format_html('<a href="{}?{}">Ver logs</a>', base_url, query)
+
+    ver_auditoria.short_description = "Auditoria"
