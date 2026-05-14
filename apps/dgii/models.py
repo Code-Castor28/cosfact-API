@@ -60,7 +60,7 @@ class DGIILog(models.Model):
     http_status = models.PositiveSmallIntegerField(null=True, blank=True)
 
     # XML cifrado con Fernet (igual que tokens DGII)
-    # Usar apps.empresas.crypto.cifrar() / descifrar()
+    # Usar empresas.crypto.cifrar() / descifrar()
     request_xml_cifrado = models.TextField(blank=True)
     response_xml_cifrado = models.TextField(blank=True)
 

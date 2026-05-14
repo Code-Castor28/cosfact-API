@@ -55,7 +55,7 @@ class TenantMiddleware(MiddlewareMixin):
 
         # Caso 1: Usuario autenticado (portal web)
         if hasattr(request, "user") and request.user.is_authenticated:
-            from apps.users.models import Usuario
+            from users.models import Usuario
             if request.user.rol == Usuario.ROL_SUPERADMIN:
                 request.empresa = None  # Superadmin puede operar sobre todas
             else:
@@ -66,7 +66,7 @@ class TenantMiddleware(MiddlewareMixin):
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
-            from apps.api_keys.models import ApiKey
+            from api_keys.models import ApiKey
             api_key = ApiKey.verificar(token)
             if api_key:
                 request.empresa = api_key.empresa
@@ -124,7 +124,7 @@ class AuditMiddleware(MiddlewareMixin):
                 or request.META.get("REMOTE_ADDR", "")
             )
 
-            from apps.audit.models import AuditLog
+            from audit.models import AuditLog
             AuditLog.objects.create(
                 empresa=empresa,
                 usuario=usuario,

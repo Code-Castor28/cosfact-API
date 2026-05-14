@@ -26,6 +26,12 @@ MAX_KEYS_POR_EMPRESA = 10  # Límite de API keys por empresa
 
 
 class ApiKey(models.Model):
+    SCOPES_VALIDOS = [
+        "comprobantes:crear",
+        "comprobantes:consultar",
+        "comprobantes:anular",
+        "secuenciales:consultar",
+    ]
     VENTANA_MINUTO = "MINUTE"
     VENTANA_HORA = "HOUR"
     VENTANA_DIA = "DAY"
@@ -52,7 +58,8 @@ class ApiKey(models.Model):
         related_name="api_keys_creadas",
     )
 
-    nombre = models.CharField(max_length=100, help_text="Nombre descriptivo, ej: 'POS Sucursal Norte'")
+    nombre = models.CharField(
+        max_length=100, help_text="Nombre descriptivo, ej: 'POS Sucursal Norte'")
 
     # Prefijo visible (primeros 8 chars) para identificar la key sin exponer el hash
     prefix = models.CharField(max_length=8, editable=False)
@@ -62,7 +69,7 @@ class ApiKey(models.Model):
 
     # Scopes: qué puede hacer esta key. JSON list de strings.
     # Ej: ["comprobantes:crear", "comprobantes:consultar", "secuenciales:consultar"]
-    scopes =  models.JSONField(default=list, blank=True)
+    scopes = models.JSONField(default=list, blank=True)
 
     # IPs permitidas. Lista vacía = todas las IPs permitidas.
     # Guardar como lista de strings validados con ipaddress.
@@ -98,7 +105,8 @@ class ApiKey(models.Model):
         related_name="api_keys_revocadas",
         editable=False,
     )
-    revocado_motivo = models.CharField(max_length=255, blank=True, editable=False)
+    revocado_motivo = models.CharField(
+        max_length=255, blank=True, editable=False)
 
     ultimo_uso_at = models.DateTimeField(null=True, blank=True)
     ultimo_uso_ip = models.GenericIPAddressField(null=True, blank=True)
@@ -234,6 +242,14 @@ class ApiKey(models.Model):
 
         if self.scopes is not None and not isinstance(self.scopes, list):
             errores["scopes"] = "Los scopes deben ser una lista."
+        elif self.scopes:
+            invalidos = [
+                s for s in self.scopes if s not in self.SCOPES_VALIDOS]
+            if invalidos:
+                errores["scopes"] = (
+                    "Scopes inválidos: "
+                    f"{', '.join(invalidos)}."
+                )
 
         if errores:
             raise ValidationError(errores)
@@ -251,4 +267,3 @@ class ApiKey(models.Model):
         self.ultimo_uso_at = timezone.now()
         self.ultimo_uso_ip = ip
         self.save(update_fields=["ultimo_uso_at", "ultimo_uso_ip"])
-

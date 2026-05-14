@@ -24,11 +24,18 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', lambda request: redirect('users:login'), name='home'),
     path('', include('users.urls')),
-    
+
     # --- API ---
     path('api/v1/users/', include('users.api_urls', namespace='users_api')),
+    path('api/v1/empresas/', include('empresas.api_urls', namespace='empresas_api')),
+    path('api/v1/api-keys/', include('api_keys.urls', namespace='api_keys')),
+    path('api/v1/subscriptions/',
+         include('subscriptions.urls', namespace='subscriptions')),
+    path('api/v1/sequences/', include('sequences.urls', namespace='sequences')),
 ]
 # Solo en desarrollo: permitir que Django sirva archivos media y static
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.STATIC_URL,
+                          document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

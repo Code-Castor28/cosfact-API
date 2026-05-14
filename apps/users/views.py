@@ -122,6 +122,7 @@ def dashboard_view(request):
         comprobantes_aceptados = Comprobante.objects.filter(estado='ACEPTADO').count()
         comprobantes_rechazados = Comprobante.objects.filter(estado='RECHAZADO').count()
         comprobantes_error = Comprobante.objects.filter(estado='ERROR').count()
+        comprobantes_contingencia = Comprobante.objects.filter(estado='CONTINGENCIA').count()
 
         tasa_aceptacion = 0
         if total_comprobantes > 0:
@@ -175,12 +176,13 @@ def dashboard_view(request):
             grafica_data.append(dias_map.get(dia, 0))
 
         # ── Gráfica: comprobantes por estado (pie) ────────────────────────
-        pie_labels = ['Aceptados', 'Rechazados', 'Pendientes', 'Error']
+        pie_labels = ['Aceptados', 'Rechazados', 'Pendientes', 'Error', 'Contingencia']
         pie_data = [
             comprobantes_aceptados,
             comprobantes_rechazados,
             Comprobante.objects.filter(estado__in=['PENDIENTE', 'PROCESANDO']).count(),
             comprobantes_error,
+            comprobantes_contingencia,
         ]
 
         # ── Alertas críticas ──────────────────────────────────────────────
@@ -235,6 +237,7 @@ def dashboard_view(request):
             'tasa_aceptacion': tasa_aceptacion,
             'comprobantes_rechazados': comprobantes_rechazados,
             'comprobantes_error': comprobantes_error,
+            'comprobantes_contingencia': comprobantes_contingencia,
             # Salud
             'empresas_cert_venciendo': empresas_cert_venciendo,
             'empresas_cert_vencido': empresas_cert_vencido,
