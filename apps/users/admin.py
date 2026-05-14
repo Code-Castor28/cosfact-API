@@ -2,17 +2,37 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import Usuario
 
+
+_original_has_permission = admin.site.has_permission
+
+
+def _superadmin_has_permission(request):
+    user = request.user
+    return bool(
+        user
+        and user.is_authenticated
+        and user.is_active
+        and user.rol == Usuario.ROL_SUPERADMIN
+    )
+
+
+admin.site.has_permission = _superadmin_has_permission
+
+
 @admin.register(Usuario)
 class UsuarioAdmin(UserAdmin):
-    list_display = ['email', 'nombre', 'apellido', 'rol', 'empresa', 'is_active']
+    list_display = ['email', 'nombre',
+                    'apellido', 'rol', 'empresa', 'is_active']
     list_filter = ['rol', 'is_active']
     search_fields = ['email', 'nombre', 'apellido']
     ordering = ['email']
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Información personal', {'fields': ('nombre', 'apellido', 'empresa', 'rol')}),
-        ('Seguridad', {'fields': ('intentos_fallidos', 'bloqueado_hasta', 'ultimo_login_ip')}),
+        ('Información personal', {
+         'fields': ('nombre', 'apellido', 'empresa', 'rol')}),
+        ('Seguridad', {'fields': ('intentos_fallidos',
+         'bloqueado_hasta', 'ultimo_login_ip')}),
         ('Permisos', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
     )
 
