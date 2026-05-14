@@ -1,25 +1,24 @@
-# apps/users/urls.py
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+)
+from .views import UsuarioViewSet, RecoverPasswordView
 
-from django.urls import path
-from . import views
+app_name = "users"
 
-app_name = 'users'
+router = DefaultRouter()
+router.register(r"", UsuarioViewSet, basename="usuario")
 
 urlpatterns = [
-    # Auth
-    path('login/', views.login_view, name='login'),
-    path('logout/', views.logout_view, name='logout'),
+    # JWT Auth
+    path("login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 
-    # Dashboard
-    path('dashboard/', views.dashboard_view, name='dashboard'),
+    # Recuperación (temporal sin email)
+    path("recover-password/", RecoverPasswordView.as_view(), name="recover_password"),
 
-    # Gestión de usuarios (solo SUPERADMIN)
-    path('usuarios/', views.lista_usuarios_view, name='lista_usuarios'),
-    path('usuarios/crear/', views.crear_usuario_view, name='crear_usuario'),
-    path('usuarios/<uuid:usuario_id>/editar/', views.editar_usuario_view, name='editar_usuario'),
-    path('usuarios/<uuid:usuario_id>/toggle/', views.toggle_usuario_view, name='toggle_usuario'),
-
-    # Perfil
-    path('perfil/', views.perfil_view, name='perfil'),
-    path('perfil/password/', views.cambiar_password_view, name='cambiar_password'),
+    # Resto del CRUD + /me/ generados por el router
+    path("", include(router.urls)),
 ]
