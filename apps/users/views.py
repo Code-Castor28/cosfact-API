@@ -95,14 +95,169 @@ def dashboard_view(request):
     context = {'usuario': request.user}
 
     if request.user.rol == Usuario.ROL_SUPERADMIN:
-        from empresas.models import Empresa
+        from empresas.models import Empresa, TokenDGII
         from comprobantes.models import Comprobante
-        context['total_empresas'] = Empresa.objects.filter(activa=True).count()
-        context['total_usuarios'] = Usuario.objects.filter(is_active=True).count()
-        context['total_comprobantes'] = Comprobante.objects.count()
-        context['empresas_recientes'] = Empresa.objects.order_by('-creado_at')[:5]
-        return render(request, 'users/dashboard_superadmin.html', context)
+        from subscriptions.models import Suscripcion, PaqueteComprobantes
+        from django.utils import timezone
+        from django.db.models import Count, Sum, Q
+        import datetime
 
+        hoy = timezone.now().date()
+        inicio_mes = hoy.replace(day=1)
+        inicio_semana = hoy - datetime.timedelta(days=hoy.weekday())
+        hace_30_dias = hoy - datetime.timedelta(days=30)
+
+        # ── KPIs generales ────────────────────────────────────────────────────
+        total_empresas = Empresa.objects.filter(activa=True, deleted_at__isnull=True).count()
+        total_usuarios = Usuario.objects.filter(is_active=True).exclude(rol=Usuario.ROL_SUPERADMIN).count()
+        usuarios_bloqueados = Usuario.objects.filter(
+            bloqueado_hasta__gt=timezone.now()
+        ).count()
+
+        # ── Comprobantes ──────────────────────────────────────────────────────
+        total_comprobantes = Comprobante.objects.count()
+        comprobantes_hoy = Comprobante.objects.filter(creado_at__date=hoy).count()
+        comprobantes_semana = Comprobante.objects.filter(creado_at__date__gte=inicio_semana).count()
+        comprobantes_mes = Comprobante.objects.filter(creado_at__date__gte=inicio_mes).count()
+        comprobantes_aceptados = Comprobante.objects.filter(estado='ACEPTADO').count()
+        comprobantes_rechazados = Comprobante.objects.filter(estado='RECHAZADO').count()
+        comprobantes_error = Comprobante.objects.filter(estado='ERROR').count()
+
+        tasa_aceptacion = 0
+        if total_comprobantes > 0:
+            tasa_aceptacion = round((comprobantes_aceptados / total_comprobantes) * 100, 1)
+
+        # ── Salud del sistema (alertas críticas) ──────────────────────────────
+        vence_en_30 = hoy + datetime.timedelta(days=30)
+        empresas_cert_venciendo = Empresa.objects.filter(
+            activa=True,
+            certificado_vence_at__lte=vence_en_30,
+            certificado_vence_at__gte=hoy,
+        ).count()
+
+        empresas_cert_vencido = Empresa.objects.filter(
+            activa=True,
+            certificado_vence_at__lt=hoy,
+        ).count()
+
+        empresas_token_expirado = TokenDGII.objects.filter(
+            activo=True,
+            expira_at__lt=timezone.now(),
+        ).values('empresa').distinct().count()
+
+        empresas_sin_paquete = Empresa.objects.filter(
+            activa=True,
+            deleted_at__isnull=True,
+        ).exclude(
+            paquetes__estado='ACTIVO'
+        ).count()
+
+        # ── Monetización ──────────────────────────────────────────────────────
+        suscripciones_activas = Suscripcion.objects.filter(estado='ACTIVA').count()
+        suscripciones_vencidas = Suscripcion.objects.filter(estado='VENCIDA').count()
+
+        # ── Gráfica: emisiones por día últimos 14 días ─────────────────────
+        hace_14_dias = hoy - datetime.timedelta(days=13)
+        emisiones_por_dia = (
+            Comprobante.objects
+            .filter(creado_at__date__gte=hace_14_dias)
+            .values('creado_at__date')
+            .annotate(total=Count('id'))
+            .order_by('creado_at__date')
+        )
+        # Construir lista completa de 14 días (con ceros para días sin emisiones)
+        dias_map = {e['creado_at__date']: e['total'] for e in emisiones_por_dia}
+        grafica_labels = []
+        grafica_data = []
+        for i in range(14):
+            dia = hace_14_dias + datetime.timedelta(days=i)
+            grafica_labels.append(dia.strftime('%d/%m'))
+            grafica_data.append(dias_map.get(dia, 0))
+
+        # ── Gráfica: comprobantes por estado (pie) ────────────────────────
+        pie_labels = ['Aceptados', 'Rechazados', 'Pendientes', 'Error']
+        pie_data = [
+            comprobantes_aceptados,
+            comprobantes_rechazados,
+            Comprobante.objects.filter(estado__in=['PENDIENTE', 'PROCESANDO']).count(),
+            comprobantes_error,
+        ]
+
+        # ── Alertas críticas ──────────────────────────────────────────────
+        alertas = []
+        if empresas_cert_vencido > 0:
+            alertas.append({
+                'nivel': 'critico',
+                'mensaje': f'{empresas_cert_vencido} empresa(s) con certificado digital VENCIDO.'
+            })
+        if empresas_cert_venciendo > 0:
+            alertas.append({
+                'nivel': 'advertencia',
+                'mensaje': f'{empresas_cert_venciendo} empresa(s) con certificado a vencer en 30 días.'
+            })
+        if empresas_token_expirado > 0:
+            alertas.append({
+                'nivel': 'advertencia',
+                'mensaje': f'{empresas_token_expirado} empresa(s) con token DGII expirado.'
+            })
+        if empresas_sin_paquete > 0:
+            alertas.append({
+                'nivel': 'info',
+                'mensaje': f'{empresas_sin_paquete} empresa(s) sin paquete de comprobantes activo.'
+            })
+
+        # ── Top 5 empresas por emisiones ──────────────────────────────────
+        top_empresas = (
+            Comprobante.objects
+            .filter(creado_at__date__gte=hace_30_dias)
+            .values('empresa__razon_social', 'empresa__rnc')
+            .annotate(total=Count('id'))
+            .order_by('-total')[:5]
+        )
+
+        # ── Últimos usuarios registrados ──────────────────────────────────
+        ultimos_usuarios = (
+            Usuario.objects
+            .exclude(rol=Usuario.ROL_SUPERADMIN)
+            .select_related('empresa')
+            .order_by('-creado_at')[:5]
+        )
+
+        context.update({
+            # KPIs
+            'total_empresas': total_empresas,
+            'total_usuarios': total_usuarios,
+            'usuarios_bloqueados': usuarios_bloqueados,
+            'total_comprobantes': total_comprobantes,
+            'comprobantes_hoy': comprobantes_hoy,
+            'comprobantes_semana': comprobantes_semana,
+            'comprobantes_mes': comprobantes_mes,
+            'tasa_aceptacion': tasa_aceptacion,
+            'comprobantes_rechazados': comprobantes_rechazados,
+            'comprobantes_error': comprobantes_error,
+            # Salud
+            'empresas_cert_venciendo': empresas_cert_venciendo,
+            'empresas_cert_vencido': empresas_cert_vencido,
+            'empresas_token_expirado': empresas_token_expirado,
+            'empresas_sin_paquete': empresas_sin_paquete,
+            # Monetización
+            'suscripciones_activas': suscripciones_activas,
+            'suscripciones_vencidas': suscripciones_vencidas,
+            # Gráficas
+            'grafica_labels': grafica_labels,
+            'grafica_data': grafica_data,
+            'pie_labels': pie_labels,
+            'pie_data': pie_data,
+            # Tablas
+            'top_empresas': top_empresas,
+            'ultimos_usuarios': ultimos_usuarios,
+            'alertas': alertas,
+            'empresas_recientes': Empresa.objects.filter(
+                deleted_at__isnull=True
+            ).order_by('-creado_at')[:5],
+        })
+
+        return render(request, 'users/dashboard_superadmin.html', context)
     else:
         empresa = request.user.empresa
         from comprobantes.models import Comprobante
@@ -118,6 +273,7 @@ def dashboard_view(request):
             PaqueteComprobantes.objects.filter(empresa=empresa, estado='ACTIVO').first()
         )
         return render(request, 'users/dashboard_empresa.html', context)
+
 
 
 # ─── Gestión de usuarios (solo SUPERADMIN) ────────────────────────────────────

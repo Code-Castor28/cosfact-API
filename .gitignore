@@ -41,3 +41,5 @@ dmypy.json
 .pyre_cache/
 .pyre/
 .pyre_check/
+postman/
+.postman/

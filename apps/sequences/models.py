@@ -25,7 +25,8 @@ from django.core.exceptions import ValidationError
 TIPOS_ECF = {
     31: "Factura de Crédito Fiscal",
     32: "Factura de Consumo",
-    33: "Nota de Débito",       # Nota: en algunos docs DGII es 34 — verificar versión vigente
+    # Nota: en algunos docs DGII es 34 — verificar versión vigente
+    33: "Nota de Débito",
     34: "Nota de Débito",
     41: "Nota de Crédito",
     43: "Comprobante de Compras",
@@ -58,7 +59,7 @@ class Secuencial(models.Model):
     # Si la DGII asigna rangos autorizados en el futuro
     minimo_asignado = models.PositiveIntegerField(default=1)
     maximo_asignado = models.PositiveIntegerField(
-        default=99999999,
+        default=9999999999,
         help_text="Número máximo autorizado para este tipo.",
     )
 
@@ -97,8 +98,8 @@ class Secuencial(models.Model):
         return self._formatear_encf(self.ultimo_numero + 1)
 
     def _formatear_encf(self, numero: int) -> str:
-        """Formato DGII: E + tipo(2) + número(8 con zeros)."""
-        return f"E{self.tipo_ecf:02d}{numero:08d}"
+        """Formato DGII: E + tipo(2) + número(10 con zeros)."""
+        return f"E{self.tipo_ecf:02d}{numero:010d}"
 
     @property
     def porcentaje_uso(self) -> float:
@@ -116,10 +117,11 @@ class Secuencial(models.Model):
         if self.tipo_ecf not in TIPOS_ECF:
             raise ValidationError({
                 "tipo_ecf": f"Tipo e-CF inválido: {self.tipo_ecf}. "
-                            f"Valores válidos: {list(TIPOS_ECF.keys())}"
+                f"Valores válidos: {list(TIPOS_ECF.keys())}"
             })
         if self.minimo_asignado < 1:
-            raise ValidationError({"minimo_asignado": "El mínimo debe ser al menos 1."})
+            raise ValidationError(
+                {"minimo_asignado": "El mínimo debe ser al menos 1."})
         if self.maximo_asignado <= self.minimo_asignado:
-            raise ValidationError({"maximo_asignado": "El máximo debe ser mayor al mínimo."})
-
+            raise ValidationError(
+                {"maximo_asignado": "El máximo debe ser mayor al mínimo."})
