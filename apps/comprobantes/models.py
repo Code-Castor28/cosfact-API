@@ -16,7 +16,8 @@ ESTADOS:
   BORRADOR → PENDIENTE → PROCESANDO → ACEPTADO
                                     ↘ RECHAZADO → (corregir, re-emitir con nuevo e-NCF)
                     ANULADO (desde ACEPTADO, con nota de crédito)
-                    ERROR (falla técnica, se puede reintentar)
+                    ERROR (falla técnica)
+                    CONTINGENCIA (reintento automático cuando DGII falla)
 """
 import uuid
 from django.db import models
@@ -39,6 +40,7 @@ class Comprobante(models.Model):
     ESTADO_RECHAZADO = "RECHAZADO"
     ESTADO_ANULADO = "ANULADO"
     ESTADO_ERROR = "ERROR"
+    ESTADO_CONTINGENCIA = "CONTINGENCIA"
 
     ESTADOS = [
         (ESTADO_BORRADOR, "Borrador"),
@@ -48,6 +50,7 @@ class Comprobante(models.Model):
         (ESTADO_RECHAZADO, "Rechazado por DGII"),
         (ESTADO_ANULADO, "Anulado"),
         (ESTADO_ERROR, "Error técnico"),
+        (ESTADO_CONTINGENCIA, "Contingencia"),
     ]
 
     # Estados que hacen el comprobante inmutable
@@ -240,7 +243,11 @@ class Comprobante(models.Model):
 
     @property
     def puede_reintentarse(self):
-        return self.estado in {self.ESTADO_RECHAZADO, self.ESTADO_ERROR}
+        return self.estado in {
+            self.ESTADO_RECHAZADO,
+            self.ESTADO_ERROR,
+            self.ESTADO_CONTINGENCIA,
+        }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
