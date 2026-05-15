@@ -39,19 +39,26 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         Asigna permisos según la acción:
         - Escritura (create, update, destroy): solo Superadmin.
         - Lectura y endpoints custom: Superadmin o Admin de su empresa.
+        - API Key (Empresa): solo lectura de su propia empresa.
         """
         if self.action in ("create", "update", "partial_update", "destroy"):
             return [permissions.IsAuthenticated(), IsSuperAdmin()]
         return [permissions.IsAuthenticated(), IsSuperAdminOrReadOnlyOwnEmpresa()]
 
+    def _es_api_key(self):
+        return isinstance(self.request.user, Empresa)
+
     def get_queryset(self):
         """
-        Filtra según el rol del usuario autenticado.
-        - Superadmin → todas las empresas (excluye soft-deleted por defecto).
-        - Admin Empresa → solo su empresa.
-        - Otros → nada.
+        Filtra según el tipo de autenticación:
+        - API Key (Empresa): solo su propia empresa.
+        - Superadmin (JWT): todas las empresas.
+        - Admin Empresa (JWT): solo su empresa.
         """
         user = self.request.user
+
+        if self._es_api_key():
+            return Empresa.objects.filter(pk=user.pk, deleted_at__isnull=True)
 
         if user.rol == Usuario.ROL_SUPERADMIN:
             qs = Empresa.objects.all()
@@ -75,7 +82,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
         if self.action in ("create", "update", "partial_update"):
             return EmpresaWriteSerializer
 
-        if user.rol == Usuario.ROL_ADMIN_EMPRESA:
+        if self._es_api_key() or user.rol == Usuario.ROL_ADMIN_EMPRESA:
             return EmpresaAdminSerializer
 
         if self.action == "list":
@@ -93,6 +100,7 @@ class EmpresaViewSet(viewsets.ModelViewSet):
     def _get_empresa_or_403(self, pk):
         """
         Obtiene una empresa verificando que el usuario tenga acceso a ella.
+        API Key (Empresa): solo su propia empresa.
         Superadmin: cualquier empresa.
         Admin Empresa: solo la suya.
         Lanza PermissionDenied o NotFound según corresponda.
@@ -103,6 +111,11 @@ class EmpresaViewSet(viewsets.ModelViewSet):
             empresa = Empresa.objects.get(pk=pk, deleted_at__isnull=True)
         except Empresa.DoesNotExist:
             raise NotFound("Empresa no encontrada.")
+
+        if self._es_api_key():
+            if str(empresa.pk) == str(user.pk):
+                return empresa
+            raise PermissionDenied("No tienes acceso a esta empresa.")
 
         if user.rol == Usuario.ROL_SUPERADMIN:
             return empresa

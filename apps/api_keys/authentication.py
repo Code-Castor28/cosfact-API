@@ -6,10 +6,10 @@ from .models import ApiKey
 class ApiKeyAuthentication(BaseAuthentication):
     def authenticate(self, request):
         auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-        if not auth_header.startswith('Bearer '):
+        if not auth_header.startswith('Api-Key '):
             return None  # No es este tipo de auth, dejar pasar a otro backend
 
-        token = auth_header[7:]
+        token = auth_header[8:]
         api_key = ApiKey.verificar(token)
 
         if not api_key:

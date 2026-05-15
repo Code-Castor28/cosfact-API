@@ -1,8 +1,34 @@
 # API Keys
 
-Documentacion de endpoints para administrar API keys (solo SUPERADMIN).
+Documentacion de endpoints para administrar API keys (solo SUPERADMIN via JWT).
 
-## Autenticacion
+## Dos roles
+
+| Rol | Autenticación | Acceso |
+| --- | --- | --- |
+| **Admin (SUPERADMIN)** | `Authorization: Bearer <JWT>` | CRUD completo sobre API Keys |
+| **POS (Empresa)** | `Authorization: Api-Key <token>` | Solo consume endpoints (lectura) |
+
+## Formato de la API Key
+
+```
+<rnc>_<token>
+```
+
+Ejemplo:
+
+```
+131793916_x8f9k3abcdef...
+```
+
+**Reglas:**
+
+- El **RNC va sin guiones**.
+- El token es aleatorio (mín. 32 caracteres recomendado).
+- El token completo **solo se muestra una vez** al crearlo o rotarlo.
+- La API **solo acepta Api-Key** para POS (no JWT ni Bearer).
+
+## Autenticacion para administrar keys
 
 - Requiere JWT en header `Authorization: Bearer <JWT>`.
 - Solo usuarios con rol `SUPERADMIN`.
@@ -33,12 +59,12 @@ Filtros (query params opcionales):
 | empresa | UUID | 4716d836-4fc4-4d6a-ad52-3c9ba13dbcb0 | Filtra por empresa |
 | activa | boolean | true | Solo activas o inactivas |
 | expirada | boolean | true | Solo expiradas o no expiradas |
-| prefix | string | NUgz | Busca por prefijo |
+| prefix | string | 131793916 | Busca por prefijo (RNC) |
 | nombre | string | POS | Busca por nombre |
 
 Ejemplo:
 ```
-GET /api/v1/api-keys/?empresa=4716d836-4fc4-4d6a-ad52-3c9ba13dbcb0&activa=true&prefix=NUgz
+GET /api/v1/api-keys/?empresa=4716d836-4fc4-4d6a-ad52-3c9ba13dbcb0&activa=true&prefix=131793916
 ```
 
 Respuesta 200 (ejemplo):
@@ -57,7 +83,7 @@ Respuesta 200 (ejemplo):
         "rnc": "131793916"
       },
       "nombre": "POS Sucursal Norte",
-      "prefix": "NUgzT__A",
+      "prefix": "131793916",
       "scopes": ["comprobantes:crear", "comprobantes:consultar"],
       "allowed_ips": [],
       "rate_limit_cantidad": 100,
@@ -118,7 +144,7 @@ Respuesta 201 (ejemplo):
     "rnc": "131793916"
   },
   "nombre": "POS Sucursal Norte",
-  "prefix": "NUgzT__A",
+  "prefix": "131793916",
   "scopes": ["comprobantes:crear", "comprobantes:consultar"],
   "allowed_ips": [],
   "rate_limit_cantidad": 100,
@@ -132,7 +158,7 @@ Respuesta 201 (ejemplo):
   "ultimo_uso_ip": null,
   "creado_at": "2026-05-12T17:14:34.815379Z",
   "actualizado_at": "2026-05-12T17:14:34.815379Z",
-  "token": "NUgzT__AKle28n6GcmvCnuU6ciadG_3J1PsMQVLe_zE"
+  "token": "131793916_5GDko-1zaNQzhwsJTMzOmMekYbph50kNe6PG3vR-UEA"
 }
 ```
 
@@ -199,7 +225,7 @@ Respuesta 201 (ejemplo):
     "rnc": "131793916"
   },
   "nombre": "POS Sucursal Norte (rotada)",
-  "prefix": "R8u7sK2p",
+  "prefix": "131793916",
   "scopes": ["comprobantes:crear", "comprobantes:consultar"],
   "allowed_ips": [],
   "rate_limit_cantidad": 100,
@@ -213,7 +239,7 @@ Respuesta 201 (ejemplo):
   "ultimo_uso_ip": null,
   "creado_at": "2026-05-12T17:20:12.000000Z",
   "actualizado_at": "2026-05-12T17:20:12.000000Z",
-  "token": "R8u7sK2p...",
+  "token": "131793916_x8f9k3...",
   "key_revocada_id": "63639ab1-48bc-4db4-9b2e-5d88242075eb"
 }
 ```
@@ -232,5 +258,5 @@ Respuesta 201 (ejemplo):
 | Codigo | Motivo |
 | --- | --- |
 | 400 | Scopes invalidos |
-| 401 | JWT ausente o invalido |
-| 403 | Usuario sin rol SUPERADMIN |
+| 401 | JWT ausente o invalido; o API Key invalida |
+| 403 | Sin permisos (rol insuficiente, IP no autorizada) |

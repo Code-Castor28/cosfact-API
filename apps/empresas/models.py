@@ -97,6 +97,11 @@ class Empresa(models.Model):
         self.save(update_fields=["deleted_at", "activa"])
 
     @property
+    def is_authenticated(self):
+        """Permite usar Empresa como request.user en DRF (Api-Key auth)."""
+        return True
+
+    @property
     def certificado_vence_pronto(self):
         """Alerta si el certificado vence en los próximos 30 días."""
         if not self.certificado_vence_at:
