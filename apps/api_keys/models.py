@@ -62,7 +62,7 @@ class ApiKey(models.Model):
         max_length=100, help_text="Nombre descriptivo, ej: 'POS Sucursal Norte'")
 
     # Prefijo visible (primeros 8 chars) para identificar la key sin exponer el hash
-    prefix = models.CharField(max_length=8, editable=False)
+    prefix = models.CharField(max_length=20, editable=False)
 
     # SHA-256 del token completo. El token completo NUNCA se guarda.
     key_hash = models.CharField(max_length=64, unique=True, editable=False)
@@ -144,8 +144,10 @@ class ApiKey(models.Model):
                 f"Límite de {MAX_KEYS_POR_EMPRESA} API keys activas por empresa alcanzado."
             )
 
-        token = secrets.token_urlsafe(32)  # 256 bits de entropía
-        prefix = token[:8]
+        rnc_limpio = empresa.rnc.replace('-', '')
+        token_aleatorio = secrets.token_urlsafe(32)  # 256 bits de entropía
+        token = f"{rnc_limpio}_{token_aleatorio}"
+        prefix = rnc_limpio
         key_hash = hashlib.sha256(token.encode()).hexdigest()
 
         instancia = cls(

@@ -18,19 +18,15 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import redirect
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', lambda request: redirect('users:login'), name='home'),
-    path('', include('users.urls')),
 
     # --- API ---
-    path('api/v1/users/', include('users.api_urls', namespace='users_api')),
-    path('api/v1/empresas/', include('empresas.api_urls', namespace='empresas_api')),
+    path('api/v1/users/', include('users.urls', namespace='users')),
+    path('api/v1/empresas/', include('empresas.urls', namespace='empresas')),
     path('api/v1/api-keys/', include('api_keys.urls', namespace='api_keys')),
-    path('api/v1/subscriptions/',
-         include('subscriptions.urls', namespace='subscriptions')),
+    path('api/v1/subscriptions/', include('subscriptions.urls', namespace='subscriptions')),
     path('api/v1/sequences/', include('sequences.urls', namespace='sequences')),
 ]
 # Solo en desarrollo: permitir que Django sirva archivos media y static

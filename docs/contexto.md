@@ -12,6 +12,7 @@ a través de una API REST que consumen sus sistemas POS.
 **Dos productos en uno:**
 - `DerejFact_API` → el servidor SaaS (este proyecto)
 - POS de ventas → cliente externo, proyecto Django separado, consume la API
+- Portal admin → proyecto Django separado (gestion de empresas, usuarios y metricas)
 
 ---
 
@@ -22,7 +23,7 @@ a través de una API REST que consumen sus sistemas POS.
 | Backend | Django 5.x + Django REST Framework |
 | Base de datos | PostgreSQL |
 | Cola de tareas | Celery + Redis |
-| Frontend portal | HTML + Django Templates |
+| Frontend portal | Proyecto separado (no en esta API) |
 | Firma XML | lxml + xmlsec |
 | Cifrado interno | cryptography (Fernet / AES-256) |
 | Almacenamiento .p12 | Disco local del VPS (ruta segura fuera del webroot) |
@@ -123,6 +124,11 @@ DerejFact_API/
 8. API  → actualiza comprobante con estado final
 9. API  → dispara webhook al POS
 10. API → retorna respuesta al POS (síncrona)
+
+**Estrategia de emision:**
+- Síncrona con fallback asíncrono
+- Timeout DGII: 10 segundos
+- Si DGII no responde: estado `CONTINGENCIA`, se reintenta con Celery y se notifica por webhook
 ```
 
 ### Modo contingencia
@@ -146,8 +152,8 @@ Si la DGII no responde o retorna error técnico (5xx / timeout):
   - Permisos: `640`, propietario: usuario del proceso Gunicorn
   - El directorio NO es accesible por Nginx
 - **PIN del certificado:** NUNCA se persiste en DB
-  - Se almacena como variable de entorno: `CERT_PIN_{empresa_uuid}`
-  - Se gestiona vía script de deploy al registrar cada empresa
+  - Se recibe desde el POS con TLS, se usa en memoria y se descarta
+  - No se guarda en variables de entorno ni en base de datos
 - **Hash de integridad:** SHA-256 del archivo guardado en `Empresa.certificado_hash`
   - Se verifica antes de cada uso para detectar corrupción o sustitución
 
@@ -173,7 +179,7 @@ Si la DGII no responde o retorna error técnico (5xx / timeout):
 - El `TenantMiddleware` inyecta `request.empresa` en cada request autenticado
 - **Regla absoluta:** ninguna vista hace queries sin filtrar por empresa
 - Un usuario solo puede ver datos de su propia empresa
-- SUPERADMIN puede operar sobre cualquier empresa desde el portal/admin
+- SUPERADMIN puede operar sobre cualquier empresa desde el portal/admin externo
 
 ---
 
@@ -203,11 +209,22 @@ Base URL: `https://api.derejfact.com/api/v1/`
 
 | Método | Endpoint | Scope requerido | Descripción |
 |---|---|---|---|
-| POST | `/comprobantes/emitir/` | `emitir` | Emitir un e-CF |
-| GET | `/comprobantes/{uuid}/` | `consultar` | Consultar estado |
-| POST | `/comprobantes/{uuid}/anular/` | `anular` | Anular e-CF aceptado |
-| GET | `/comprobantes/` | `consultar` | Listar historial |
-| GET | `/cuenta/saldo/` | `consultar` | Paquete activo y saldo |
+| POST | `/comprobantes/emitir/` | `emitir` | Emitir un e-CF *(pendiente de implementar)* |
+| POST | `/comprobantes/nota-credito/` | `emitir` | Emitir nota de credito *(pendiente de implementar)* |
+| POST | `/comprobantes/nota-debito/` | `emitir` | Emitir nota de debito *(pendiente de implementar)* |
+| GET | `/comprobantes/{uuid}/` | `consultar` | Consultar estado *(pendiente de implementar)* |
+| POST | `/comprobantes/{uuid}/anular/` | `anular` | Anular e-CF aceptado *(pendiente de implementar)* |
+| GET | `/comprobantes/` | `consultar` | Listar historial *(pendiente de implementar)* |
+| GET | `/sequences/` | `consultar` | Secuencias (router existente) |
+| POST | `/sequences/` | `emitir` | Cargar secuencia (inicio/fin) *(pendiente de reglas por plan)* |
+| GET | `/api-keys/` | `consultar` | Gestion de API keys (superadmin) |
+| GET | `/subscriptions/planes/` | `consultar` | Planes disponibles |
+| GET | `/subscriptions/paquetes/` | `consultar` | Paquetes de comprobantes |
+| POST | `/users/login/` | `consultar` | Login JWT (portal admin, no POS) |
+| POST | `/users/token/refresh/` | `consultar` | Refresh JWT (portal admin) |
+| GET | `/cuenta/saldo/` | `consultar` | Paquete activo y saldo *(pendiente de implementar)* |
+| GET | `/dashboard/metricas/` | `consultar` | Metricas para POS *(pendiente de implementar)* |
+| GET | `/notificaciones/` | `consultar` | Notificaciones del sistema *(pendiente de implementar)* |
 
 ---
 
@@ -225,29 +242,48 @@ Base URL: `https://api.derejfact.com/api/v1/`
   - `paquete.agotado`
   - `paquete.por_agotarse`
   - `suscripcion.vencida`
-  - `certificado.por_vencer`
+- `certificado.por_vencer`
 
 ---
 
-## 12. Seguridad — Decisiones clave
+## 12. Metricas y criterios de optimo
+
+**Criterios clave (POS y sistema):**
+- Velocidad: P95 < 3s
+- Calidad XML: >= 97% de aceptacion DGII
+- Estabilidad: < 0.1% errores 5xx
+
+**Metricas para dashboard POS:**
+- Aceptados / Rechazados / Contingencia / Pendientes
+- Tiempo promedio DGII y P95
+- Facturas por dia y semana
+- Errores 4xx / 5xx
+- Saldo restante del plan
+- Certificados por vencer
+- Tokens DGII expirados
+- Webhooks fallidos
+
+---
+
+## 13. Seguridad — Decisiones clave
 
 | Decisión | Implementación |
 |---|---|
 | Token DGII | Cifrado con Fernet (AES-128-CBC + HMAC) antes de persistir |
-| PIN certificado | Solo en variables de entorno del VPS, nunca en DB |
+| PIN certificado | TLS + uso en memoria, no se persiste |
 | API Keys | Solo SHA-256 en DB, valor completo visible una sola vez |
 | Secret webhooks | Solo SHA-256 en DB |
 | Inmutabilidad comprobantes | Protección en `save()` Python + trigger de DB |
 | Inmutabilidad audit logs | `save()` y `delete()` lanzan excepción si registro existe |
-| Aislamiento tenant | TenantMiddleware + TenantQuerysetMixin obligatorio |
+| Aislamiento tenant | TenantMiddleware obligatorio |
 | Bloqueo de cuenta | 5 intentos fallidos → bloqueo 30 minutos |
-| Sesiones web | `SESSION_COOKIE_AGE = 28800` (8 horas) en settings |
+| Sesiones web | Manejo en portal admin externo |
 | HTTPS | Obligatorio. Nginx con SSL. HTTP redirige a HTTPS |
 | IPs permitidas | Validación con módulo `ipaddress` de Python en ApiKey |
 
 ---
 
-## 13. Variables de entorno requeridas (.env)
+## 14. Variables de entorno requeridas (.env)
 
 ```env
 # Django
@@ -270,9 +306,6 @@ FERNET_KEY=
 REDIS_URL=redis://:password@localhost:6379/0
 CELERY_BROKER_URL=redis://:password@localhost:6379/0
 
-# Certificados (uno por empresa, agregar al registrar)
-CERT_PIN_{empresa_uuid}=
-
 # Rutas
 CERT_BASE_PATH=/var/derejfact/certificados/
 XML_BASE_PATH=/var/derejfact/xmls/
@@ -280,20 +313,20 @@ XML_BASE_PATH=/var/derejfact/xmls/
 
 ---
 
-## 14. Plan de trabajo — Secuencia de fases
+## 15. Plan de trabajo — Secuencia de fases
 
 ```
-Fase 1 (paralelo)    → users, empresas, api_keys
-Fase 2 (paralelo)    → subscriptions, sequences, dgii
-Fase 3 (secuencial)  → comprobantes  [depende de todo Fase 2]
-Fase 4 (paralelo)    → audit, webhooks
-Fase 5 (paralelo)    → portal cliente, panel admin
+Fase 1 (paralelo)    → empresas, subscriptions, sequences
+Fase 2 (paralelo)    → dgii, comprobantes
+Fase 3 (paralelo)    → api_keys, audit
+Fase 4 (paralelo)    → webhooks, dashboard metricas
+Fase 5 (paralelo)    → portal cliente, panel admin (proyecto separado)
 Fase 6 (paralelo)    → Celery+Redis, Nginx+SSL
 ```
 
 ---
 
-## 15. Tipos de e-CF soportados
+## 16. Tipos de e-CF soportados
 
 | Código | Nombre |
 |---|---|
@@ -311,3 +344,24 @@ Fase 6 (paralelo)    → Celery+Redis, Nginx+SSL
 ---
 
 *Última actualización: Mayo 2026*
+
+---
+
+## 17. Secuencia de entrega (POS)
+
+1. Emision de comprobantes
+2. Nota de credito
+3. Nota de debito
+4. Consulta de estado
+5. Secuencias (cargar + consultar)
+6. Certificados .p12 (cargar + consultar)
+7. Dashboard de metricas
+8. Saldo / plan restante
+9. Notificaciones
+
+---
+
+## 18. Reglas de negocio clave
+
+- La secuencia cargada debe ser igual o menor al plan contratado
+  - Ejemplo: rango 1 a 10 = 10 comprobantes -> plan debe ser de 10
