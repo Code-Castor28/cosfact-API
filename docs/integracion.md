@@ -98,6 +98,22 @@ POST /api/v1/empresas/
 
 Requiere JWT (SUPERADMIN).
 
+### Paso 1b — Login para SUPERADMIN
+
+```
+POST /api/v1/auth/login/
+Body: { "username": "...", "password": "..." }
+Response: { "access": "<JWT>", "refresh": "<refresh_token>" }
+```
+
+Usar el token JWT obtenido como:
+
+```
+Authorization: Bearer <access_token>
+```
+
+Requiere JWT (SUPERADMIN).
+
 ### Paso 2 — Cargar certificado .p12
 
 Subir el archivo .p12 al almacenamiento externo (MinIO/S3).  
@@ -107,19 +123,19 @@ El **PIN nunca se guarda** — el POS lo envía en el body de cada request de em
 ### Paso 3 — Crear plan (si no existe)
 
 ```
-POST /api/v1/subscriptions/planes/
+POST /api/v1/planes/
 ```
 
 ### Paso 4 — Crear suscripción
 
 ```
-POST /api/v1/subscriptions/suscripciones/
+POST /api/v1/suscripciones/
 ```
 
 ### Paso 5 — Crear paquetes (si aplica)
 
 ```
-POST /api/v1/subscriptions/paquetes/
+POST /api/v1/paquetes/
 ```
 
 ### Paso 6 — Crear API Key
@@ -228,13 +244,13 @@ Authorization: Api-Key <token>
 ### Paso 3 — Consultar secuenciales
 
 ```
-GET /api/v1/sequences/
+GET /api/v1/secuenciales/
 ```
 
 ### Paso 4 — Preview de NCF
 
 ```
-GET /api/v1/sequences/{id}/preview/
+GET /api/v1/secuenciales/{id}/preview/
 ```
 
 ---
@@ -243,10 +259,11 @@ GET /api/v1/sequences/{id}/preview/
 
 ### Lectura (Api-Key)
 
-- `GET /api/v1/sequences/`
-- `GET /api/v1/sequences/{id}/preview/`
+- `GET /api/v1/secuenciales/`
+- `GET /api/v1/secuenciales/{id}/preview/`
 - `GET /api/v1/empresas/{id}/comprobantes/`
 - `GET /api/v1/empresas/{id}/suscripcion/`
+- `GET /api/v1/pagos/historial/?empresa={id}` — historial de pagos de la empresa
 
 ### Emisión (Api-Key + PIN .p12)
 
@@ -271,9 +288,143 @@ Cuando estén disponibles:
 
 ---
 
-## 12) Buenas prácticas
+## 12) Consumo desde Frontend (JWT)
+
+Guía para aplicaciones web/panel administrativo que consumen la API usando autenticación JWT.
+
+### 12.1 Autenticación
+
+```
+POST /api/v1/auth/login/
+Content-Type: application/json
+
+{
+  "username": "admin@ejemplo.com",
+  "password": "********"
+}
+
+Response 200:
+{
+  "access": "eyJhbGciOiJI...",
+  "refresh": "eyJhbGciOiJSUzI1..."
+}
+```
+
+### 12.2 Uso del token
+
+Incluir en todos los requests:
+
+```
+Authorization: Bearer eyJhbGciOiJI...
+```
+
+### 12.3 Refrescar token
+
+Cuando el `access_token` expire:
+
+```
+POST /api/v1/auth/token/refresh/
+Content-Type: application/json
+
+{
+  "refresh": "eyJhbGciOiJSUzI1..."
+}
+
+Response 200:
+{
+  "access": "eyJhbGciOiJSUzI1..."
+}
+```
+
+### 12.4 Interceptor recomendado (axios)
+
+```javascript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'https://sandbox-derejfact.derejsoft.com/api/v1/',
+});
+
+// Interceptor para agregar JWT
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Interceptor para refrescar token en 401
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      const refresh = localStorage.getItem('refresh_token');
+      if (refresh) {
+        try {
+          const { data } = await axios.post(
+            'https://sandbox-derejfact.derejsoft.com/api/v1/auth/token/refresh/',
+            { refresh }
+          );
+          localStorage.setItem('access_token', data.access);
+          error.config.headers.Authorization = `Bearer ${data.access}`;
+          return api(error.config);
+        } catch {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          window.location.href = '/login';
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+```
+
+### 12.5 Endpoints de panel (JWT requerido)
+
+| Método | Ruta | Uso |
+|--------|------|-----|
+| GET/POST | `/api/v1/usuarios/` | CRUD usuarios (SUPERADMIN) |
+| GET/PUT/PATCH | `/api/v1/usuarios/me/` | Perfil propio |
+| POST | `/api/v1/usuarios/me/change-password/` | Cambiar contraseña propia |
+| GET/POST | `/api/v1/empresas/` | CRUD empresas |
+| GET/POST | `/api/v1/planes/` | CRUD planes |
+| GET/POST | `/api/v1/suscripciones/` | CRUD suscripciones |
+| GET/POST | `/api/v1/paquetes/` | CRUD paquetes |
+| GET/POST | `/api/v1/pagos/` | CRUD pagos |
+| POST | `/api/v1/pagos/{id}/confirmar/` | Confirmar pago |
+| POST | `/api/v1/pagos/{id}/rechazar/` | Rechazar pago |
+| GET | `/api/v1/pagos/historial/` | Historial de pagos |
+| GET/POST | `/api/v1/api-keys/` | CRUD API Keys |
+| POST | `/api/v1/api-keys/{id}/revocar/` | Revocar key |
+| POST | `/api/v1/api-keys/{id}/rotar/` | Rotar key |
+| GET/POST | `/api/v1/secuenciales/` | CRUD secuenciales |
+| POST | `/api/v1/secuenciales/{id}/bloquear/` | Bloquear secuencial |
+| POST | `/api/v1/secuenciales/{id}/desbloquear/` | Desbloquear secuencial |
+
+### 12.6 Roles y alcance
+
+| Rol | Acceso |
+|-----|--------|
+| SUPERADMIN | Todos los endpoints CRUD |
+| ADMIN_EMPRESA | Lectura + escritura limitada a su empresa |
+| USUARIO_EMPRESA | Solo su perfil (`/usuarios/me/`) |
+
+### 12.7 Buenas prácticas Frontend
+
+- Guardar tokens en `localStorage` o `HttpOnly cookies`
+- Implementar interceptor de refresh automático
+- Redirigir a login en 401 si el refresh falla
+- No exponer API Keys en código frontend
+- Usar variables de entorno para la base URL
+
+---
+
+## 13) Buenas prácticas generales
 
 - No exponer la API Key en front-end público
 - Rotar manualmente si sospecha de compromiso
 - El PIN del .p12 debe viajar cifrado (TLS) — nunca en texto plano por canales no seguros
 - Revisar consumo y logs periódicamente
+- Humanos → JWT. POS → API Key (nunca mezclar)

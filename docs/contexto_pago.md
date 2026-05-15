@@ -121,12 +121,7 @@ Cada pago confirmado crea un registro en `HistorialPago` con:
 |--------|------|-------------|----------|
 | POST | `/api/v1/pagos/{id}/confirmar/` | Confirmar → activar suscripción + crear paquete + historial | SUPERADMIN |
 | POST | `/api/v1/pagos/{id}/rechazar/` | Rechazar pago | SUPERADMIN |
-
-### 4.3 Empresa (API Key)
-
-| Método | Ruta | Descripción | Permisos |
-|--------|------|-------------|----------|
-| GET | `/api/v1/pagos/mi-empresa/` | Historial de pagos de la empresa | API Key / ADMIN_EMPRESA |
+| GET | `/api/v1/pagos/historial/` | Listar historial de pagos (filtrable por `?empresa=X`) | SUPERADMIN y API Key |
 
 ---
 
