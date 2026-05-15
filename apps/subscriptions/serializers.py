@@ -13,6 +13,7 @@ class PlanSerializer(serializers.ModelSerializer):
             "precio_mensual",
             "precio_anual",
             "ciclo_disponible",
+            "dias_gracia",
             "tipos_ecf_permitidos",
             "activo",
             "orden",
@@ -23,6 +24,8 @@ class PlanSerializer(serializers.ModelSerializer):
 
 
 class SuscripcionSerializer(serializers.ModelSerializer):
+    dias_gracia = serializers.IntegerField(source="plan.dias_gracia", read_only=True)
+    
     class Meta:
         model = Suscripcion
         fields = [
@@ -34,10 +37,11 @@ class SuscripcionSerializer(serializers.ModelSerializer):
             "fecha_inicio",
             "fecha_renovacion",
             "precio_pagado",
+            "dias_gracia",
             "creado_at",
             "actualizado_at",
         ]
-        read_only_fields = ["id", "creado_at", "actualizado_at"]
+        read_only_fields = ["id", "dias_gracia", "creado_at", "actualizado_at"]
 
 
 class PaqueteComprobantesSerializer(serializers.ModelSerializer):
