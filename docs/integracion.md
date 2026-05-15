@@ -48,25 +48,47 @@ Ejemplo:
 
 ---
 
-## 3) Requisitos previos
+## 3) Roles y autenticación
 
-### 3.1 Dominio y TLS
+| Actor | Autenticación | Header | Uso |
+| --- | --- | --- | --- |
+| SUPERADMIN (humano) | JWT | `Authorization: Bearer <JWT>` | CRUD completo |
+| ADMIN_EMPRESA (humano) | JWT | `Authorization: Bearer <JWT>` | Lectura + admin de su empresa |
+| POS (sistema) | API Key | `Authorization: Api-Key <token>` | Solo lectura + emisión |
+
+**Regla fija:**  
+- Humanos → JWT.  
+- POS → API Key.  
+- API Key NO se usa para panel/admin.
+
+---
+
+## 4) Requisitos previos
+
+### 4.1 Dominio y TLS
 
 - Subdominio: `sandbox-derejfact.derejsoft.com`
 - Certificado TLS válido (HTTPS obligatorio)
 
-### 3.2 Datos mínimos por empresa
+### 4.2 Datos mínimos por empresa
 
 Para que un POS opere necesitas:
 
 - Empresa creada
+- Certificado .p12 cargado en almacenamiento externo (MinIO/S3)
 - Plan/suscripción activa
 - Paquetes de comprobantes activos (si aplica)
 - API Key activa
 
+### 4.3 Seguridad del certificado .p12
+
+- El archivo .p12 **nunca se guarda en la base de datos**.
+- Solo se guarda una `storage_key` que apunta al archivo en MinIO/S3.
+- El **PIN del .p12 nunca se persiste** — viaja en el request y se usa en memoria.
+
 ---
 
-## 4) Flujo de provisión de empresas (paso a paso)
+## 5) Flujo de provisión de empresas (paso a paso)
 
 ### Paso 1 — Crear empresa
 
@@ -76,25 +98,31 @@ POST /api/v1/empresas/
 
 Requiere JWT (SUPERADMIN).
 
-### Paso 2 — Crear plan (si no existe)
+### Paso 2 — Cargar certificado .p12
+
+Subir el archivo .p12 al almacenamiento externo (MinIO/S3).  
+En la empresa se guarda la `certificado_storage_key` (referencia al archivo).  
+El **PIN nunca se guarda** — el POS lo envía en el body de cada request de emisión.
+
+### Paso 3 — Crear plan (si no existe)
 
 ```
 POST /api/v1/subscriptions/planes/
 ```
 
-### Paso 3 — Crear suscripción
+### Paso 4 — Crear suscripción
 
 ```
 POST /api/v1/subscriptions/suscripciones/
 ```
 
-### Paso 4 — Crear paquetes (si aplica)
+### Paso 5 — Crear paquetes (si aplica)
 
 ```
 POST /api/v1/subscriptions/paquetes/
 ```
 
-### Paso 5 — Crear API Key
+### Paso 6 — Crear API Key
 
 ```
 POST /api/v1/api-keys/
@@ -105,7 +133,7 @@ POST /api/v1/api-keys/
 
 ---
 
-## 5) Whitelist de IPs (opcional)
+## 6) Whitelist de IPs (opcional)
 
 **Regla:**
 
@@ -118,7 +146,7 @@ Errores:
 
 ---
 
-## 6) Rotación de API Keys (manual con auditoría)
+## 7) Rotación de API Keys (manual con auditoría)
 
 - Acción disponible: `POST /api/v1/api-keys/{id}/rotar/`
 - Revoca la key anterior y genera una nueva
@@ -134,9 +162,9 @@ Errores:
 
 ---
 
-## 7) Implementación en POS (cliente REST JSON)
+## 8) Implementación en POS (cliente REST JSON)
 
-### 7.1 Guardar credenciales
+### 8.1 Guardar credenciales
 
 Guardar en `.env`:
 
@@ -145,7 +173,7 @@ DEREJ_API_KEY=131793916_x8f9k3...
 DEREJ_API_BASE=https://sandbox-derejfact.derejsoft.com/api/v1/
 ```
 
-### 7.2 Cliente HTTP
+### 8.2 Cliente HTTP
 
 - Timeout recomendado: 10s
 - Reintentos: 2–3 en 5xx
@@ -156,7 +184,22 @@ DEREJ_API_BASE=https://sandbox-derejfact.derejsoft.com/api/v1/
   Content-Type: application/json
   ```
 
-### 7.3 Errores comunes
+### 8.3 .p12 PIN en emisión
+
+Cuando el endpoint de emisión esté disponible, el POS debe enviar:
+
+```json
+{
+  "cert_pin": "1234",
+  "comprobante": { ... }
+}
+```
+
+- El **PIN** es la contraseña del certificado .p12 de la empresa.
+- El PIN **nunca se guarda** — solo se usa en memoria para firmar el XML.
+- El archivo .p12 ya está almacenado en la infraestructura (no se envía).
+
+### 8.4 Errores comunes
 
 | Código | Motivo |
 |--------|--------|
@@ -168,7 +211,7 @@ DEREJ_API_BASE=https://sandbox-derejfact.derejsoft.com/api/v1/
 
 ---
 
-## 8) Pruebas con Postman (paso a paso)
+## 9) Pruebas con Postman (paso a paso)
 
 ### Paso 1 — Verificar la API Key
 
@@ -196,31 +239,41 @@ GET /api/v1/sequences/{id}/preview/
 
 ---
 
-## 9) Endpoints mínimos recomendados para POS (sandbox)
+## 10) Endpoints mínimos recomendados para POS (sandbox)
+
+### Lectura (Api-Key)
 
 - `GET /api/v1/sequences/`
 - `GET /api/v1/sequences/{id}/preview/`
 - `GET /api/v1/empresas/{id}/comprobantes/`
 - `GET /api/v1/empresas/{id}/suscripcion/`
 
-*(Cuando estén listos los endpoints de comprobantes, añadir: emitir, consultar, anular.)*
+### Emisión (Api-Key + PIN .p12)
+
+Cuando estén disponibles:
+
+| Método | Endpoint | Body adicional |
+|--------|----------|----------------|
+| POST | /api/v1/comprobantes/emitir/ | `{ "cert_pin": "...", "comprobante": {...} }` |
 
 ---
 
-## 10) Checklist final (antes de habilitar a un POS)
+## 11) Checklist final (antes de habilitar a un POS)
 
 - [ ] Empresa creada
+- [ ] Certificado .p12 cargado en almacenamiento externo
 - [ ] Suscripción activa
 - [ ] Paquetes activos
 - [ ] API Key generada con prefijo RNC
 - [ ] API Key entregada al POS
 - [ ] (Opcional) IPs permitidas cargadas
-- [ ] Pruebas con Postman OK
+- [ ] Pruebas con Postman OK (lectura + emisión)
 
 ---
 
-## 11) Buenas prácticas
+## 12) Buenas prácticas
 
 - No exponer la API Key en front-end público
 - Rotar manualmente si sospecha de compromiso
+- El PIN del .p12 debe viajar cifrado (TLS) — nunca en texto plano por canales no seguros
 - Revisar consumo y logs periódicamente

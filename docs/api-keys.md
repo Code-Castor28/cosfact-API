@@ -4,10 +4,14 @@ Documentacion de endpoints para administrar API keys (solo SUPERADMIN via JWT).
 
 ## Dos roles
 
-| Rol | Autenticación | Acceso |
-| --- | --- | --- |
-| **Admin (SUPERADMIN)** | `Authorization: Bearer <JWT>` | CRUD completo sobre API Keys |
-| **POS (Empresa)** | `Authorization: Api-Key <token>` | Solo consume endpoints (lectura) |
+| Rol | Autenticación | Header | Acceso |
+| --- | --- | --- | --- |
+| **SUPERADMIN** (humano) | JWT | `Authorization: Bearer <JWT>` | CRUD completo sobre API Keys |
+| **ADMIN_EMPRESA** (humano) | JWT | `Authorization: Bearer <JWT>` | Ver keys de su empresa |
+| **POS** (sistema) | API Key | `Authorization: Api-Key <token>` | Solo consume endpoints (lectura + emisión) |
+
+**Regla:** humanos → JWT. POS → Api-Key.  
+La Api-Key **no se usa para panel/admin** — es exclusiva para máquinas (POS).
 
 ## Formato de la API Key
 
@@ -258,5 +262,5 @@ Respuesta 201 (ejemplo):
 | Codigo | Motivo |
 | --- | --- |
 | 400 | Scopes invalidos |
-| 401 | JWT ausente o invalido; o API Key invalida |
-| 403 | Sin permisos (rol insuficiente, IP no autorizada) |
+| 401 | JWT ausente o invalido (humanos); API Key invalida (POS) |
+| 403 | Rol insuficiente, IP no autorizada, o usar Api-Key en endpoint de admin |
