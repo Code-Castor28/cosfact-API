@@ -49,6 +49,8 @@ class UsuarioViewSet(viewsets.ModelViewSet):
         PUT /api/v1/users/me/
         """
         user = request.user
+        if not isinstance(user, Usuario):
+            return Response({"detail": "Este endpoint solo está disponible para usuarios registrados."}, status=status.HTTP_403_FORBIDDEN)
         if request.method == "GET":
             serializer = self.get_serializer(user)
             return Response(serializer.data)
