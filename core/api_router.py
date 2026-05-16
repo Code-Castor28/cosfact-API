@@ -1,10 +1,10 @@
 from rest_framework.routers import DefaultRouter
-from apps.users.views import UsuarioViewSet
-from apps.empresas.views import EmpresaViewSet
-from apps.api_keys.views import ApiKeyViewSet
-from apps.sequences.views import SecuencialViewSet
-from apps.subscriptions.views import PlanViewSet, SuscripcionViewSet, PaqueteComprobantesViewSet
-from apps.pagos.views import PagoViewSet
+from users.views import UsuarioViewSet
+from empresas.views import EmpresaViewSet
+from api_keys.views import ApiKeyViewSet
+from sequences.views import SecuencialViewSet
+from subscriptions.views import PlanViewSet, SuscripcionViewSet, PaqueteComprobantesViewSet
+from pagos.views import PagoViewSet
 
 # Router central para toda la API v1
 router = DefaultRouter()

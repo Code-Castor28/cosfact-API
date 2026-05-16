@@ -1,430 +1,519 @@
-# Integración POS ↔ API (Sandbox)
+# Integracion POS ↔ API
 
-Guía paso a paso para exponer la API y conectar POS usando **API Keys con prefijo RNC**.
+Esta guia refleja el estado real del proyecto para que las pruebas en Postman cuadren con lo que hoy existe en el codigo.
 
----
+## 1. Lo que si existe hoy
 
-## 1) Objetivo
+Rutas disponibles bajo `/api/v1/`:
 
-Conectar los POS con la API para consumir endpoints de facturación electrónica y recursos relacionados.
-Esta guía cubre **sandbox**, **autenticación Api‑Key**, **flujo de pruebas** y **recomendaciones de implementación en POS**.
+- `auth/login/`
+- `auth/token/refresh/`
+- `auth/recover-password/`
+- `usuarios/`
+- `usuarios/me/`
+- `usuarios/me/change-password/`
+- `empresas/`
+- `empresas/{id}/suscripcion/`
+- `empresas/{id}/comprobantes/`
+- `planes/`
+- `suscripciones/`
+- `paquetes/`
+- `api-keys/`
+- `api-keys/{id}/revocar/`
+- `api-keys/{id}/rotar/`
+- `secuenciales/`
+- `secuenciales/{id}/preview/`
+- `secuenciales/{id}/bloquear/`
+- `secuenciales/{id}/desbloquear/`
+- `pagos/`
+- `pagos/{id}/confirmar/`
+- `pagos/{id}/rechazar/`
+- `pagos/historial/`
 
----
+Rutas que hoy estan vacias o no implementadas:
 
-## 2) Datos base y estándares
+- `comprobantes/`
+- `dgii/`
+- `webhooks/`
 
-### 2.1 Base URL (sandbox)
+Si quieres probar en Postman, concentrate en las rutas de arriba. Las otras no te van a responder porque aun no tienen vistas.
 
+## 2. Autenticacion
+
+### 2.1 JWT para panel o admin
+
+Login:
+
+```http
+POST /api/v1/auth/login/
+Content-Type: application/json
 ```
-https://sandbox-derejfact.derejsoft.com/api/v1/
+
+Body:
+
+```json
+{
+  "email": "admin@ejemplo.com",
+  "password": "Test123456"
+}
 ```
 
-### 2.2 Autenticación (único método para POS)
+Respuesta esperada:
+
+```json
+{
+  "access": "<jwt_access>",
+  "refresh": "<jwt_refresh>"
+}
+```
+
+Refrescar token:
+
+```http
+POST /api/v1/auth/token/refresh/
+Content-Type: application/json
+```
+
+```json
+{
+  "refresh": "<jwt_refresh>"
+}
+```
+
+Usa el access token asi:
+
+```http
+Authorization: Bearer <jwt_access>
+```
+
+### 2.2 API Key para POS
 
 Header obligatorio:
 
-```
-Authorization: Api-Key <token>
+```http
+Authorization: Api-Key <token_completo>
 ```
 
-### 2.3 Formato de la API Key
+Formato real de la key generada por el sistema:
 
-```
-<rnc>_<token>
+```text
+<rnc_sin_guiones>_<token_aleatorio>
 ```
 
 Ejemplo:
 
-```
+```text
 131793916_x8f9k3abcdef...
 ```
 
-**Reglas:**
+La respuesta de creacion de API Key devuelve el `token` una sola vez. Luego no vuelve a mostrarse.
 
-- El **RNC va sin guiones**.
-- El token es aleatorio (mín. 32 caracteres recomendado).
-- El token completo **solo se muestra una vez** al crearlo o rotarlo.
-- La API **solo acepta Api-Key** (no JWT ni Bearer para POS).
+## 3. Variables recomendadas en Postman
 
----
-
-## 3) Roles y autenticación
-
-| Actor | Autenticación | Header | Uso |
-| --- | --- | --- | --- |
-| SUPERADMIN (humano) | JWT | `Authorization: Bearer <JWT>` | CRUD completo |
-| ADMIN_EMPRESA (humano) | JWT | `Authorization: Bearer <JWT>` | Lectura + admin de su empresa |
-| POS (sistema) | API Key | `Authorization: Api-Key <token>` | Solo lectura + emisión |
-
-**Regla fija:**  
-- Humanos → JWT.  
-- POS → API Key.  
-- API Key NO se usa para panel/admin.
-
----
-
-## 4) Requisitos previos
-
-### 4.1 Dominio y TLS
-
-- Subdominio: `sandbox-derejfact.derejsoft.com`
-- Certificado TLS válido (HTTPS obligatorio)
-
-### 4.2 Datos mínimos por empresa
-
-Para que un POS opere necesitas:
-
-- Empresa creada
-- Certificado .p12 cargado en almacenamiento externo (MinIO/S3)
-- Plan/suscripción activa
-- Paquetes de comprobantes activos (si aplica)
-- API Key activa
-
-### 4.3 Seguridad del certificado .p12
-
-- El archivo .p12 **nunca se guarda en la base de datos**.
-- Solo se guarda una `storage_key` que apunta al archivo en MinIO/S3.
-- El **PIN del .p12 nunca se persiste** — viaja en el request y se usa en memoria.
-
----
-
-## 5) Flujo de provisión de empresas (paso a paso)
-
-### Paso 1 — Crear empresa
-
-```
-POST /api/v1/empresas/
-```
-
-Requiere JWT (SUPERADMIN).
-
-### Paso 1b — Login para SUPERADMIN
-
-```
-POST /api/v1/auth/login/
-Body: { "username": "...", "password": "..." }
-Response: { "access": "<JWT>", "refresh": "<refresh_token>" }
-```
-
-Usar el token JWT obtenido como:
-
-```
-Authorization: Bearer <access_token>
-```
-
-Requiere JWT (SUPERADMIN).
-
-### Paso 2 — Cargar certificado .p12
-
-Subir el archivo .p12 al almacenamiento externo (MinIO/S3).  
-En la empresa se guarda la `certificado_storage_key` (referencia al archivo).  
-El **PIN nunca se guarda** — el POS lo envía en el body de cada request de emisión.
-
-### Paso 3 — Crear plan (si no existe)
-
-```
-POST /api/v1/planes/
-```
-
-### Paso 4 — Crear suscripción
-
-```
-POST /api/v1/suscripciones/
-```
-
-### Paso 5 — Crear paquetes (si aplica)
-
-```
-POST /api/v1/paquetes/
-```
-
-### Paso 6 — Crear API Key
-
-```
-POST /api/v1/api-keys/
-```
-
-- Se genera token `rnc_<token>`
-- **Guardar el token completo** en el POS (solo se devuelve una vez)
-
----
-
-## 6) Whitelist de IPs (opcional)
-
-**Regla:**
-
-- Si `allowed_ips` está vacío → acceso permitido desde cualquier IP
-- Si tiene IPs → debe cumplirse
-
-Errores:
-
-- 403: "IP no autorizada para esta API Key"
-
----
-
-## 7) Rotación de API Keys (manual con auditoría)
-
-- Acción disponible: `POST /api/v1/api-keys/{id}/rotar/`
-- Revoca la key anterior y genera una nueva
-- Debe registrarse:
-  - usuario que la rotó
-  - fecha
-  - motivo (opcional)
-
-**Recomendación para POS:**
-
-- Permitir "Regenerar Key" en el panel
-- Mostrarla una sola vez y pedir confirmación
-
----
-
-## 8) Implementación en POS (cliente REST JSON)
-
-### 8.1 Guardar credenciales
-
-Guardar en `.env`:
-
-```
-DEREJ_API_KEY=131793916_x8f9k3...
-DEREJ_API_BASE=https://sandbox-derejfact.derejsoft.com/api/v1/
-```
-
-### 8.2 Cliente HTTP
-
-- Timeout recomendado: 10s
-- Reintentos: 2–3 en 5xx
-- Headers:
-
-  ```
-  Authorization: Api-Key <token>
-  Content-Type: application/json
-  ```
-
-### 8.3 .p12 PIN en emisión
-
-Cuando el endpoint de emisión esté disponible, el POS debe enviar:
+Define estas variables en el environment:
 
 ```json
 {
-  "cert_pin": "1234",
-  "comprobante": { ... }
+  "baseUrl": "http://127.0.0.1:8000/api/v1",
+  "jwtAccess": "",
+  "jwtRefresh": "",
+  "apiKey": ""
 }
 ```
 
-- El **PIN** es la contraseña del certificado .p12 de la empresa.
-- El PIN **nunca se guarda** — solo se usa en memoria para firmar el XML.
-- El archivo .p12 ya está almacenado en la infraestructura (no se envía).
+Si pruebas en sandbox, cambia `baseUrl` por tu dominio real.
 
-### 8.4 Errores comunes
+## 4. JSON correctos para probar
 
-| Código | Motivo |
-|--------|--------|
-| 401 | API Key inválida o expirada |
-| 403 | IP no autorizada |
-| 404 | Recurso no encontrado |
-| 429 | Rate limit |
-| 5xx | Error interno de API |
+### 4.1 Crear usuario
 
----
-
-## 9) Pruebas con Postman (paso a paso)
-
-### Paso 1 — Verificar la API Key
-
-```
-GET /api/v1/empresas/
-Authorization: Api-Key <token>
+```http
+POST /api/v1/usuarios/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
 ```
 
-### Paso 2 — Probar whitelist (si aplica)
-
-- Llamar desde IP autorizada → 200
-- Llamar desde IP no autorizada → 403
-
-### Paso 3 — Consultar secuenciales
-
+```json
+{
+  "email": "admin@empresa.com",
+  "nombre": "Juan",
+  "apellido": "Pérez",
+  "rol": "ADMIN_EMPRESA",
+  "empresa": "<empresa_uuid>",
+  "password": "Test123456",
+  "is_active": true
+}
 ```
-GET /api/v1/secuenciales/
+
+Si el usuario es `SUPERADMIN`, no le asignes empresa.
+
+### 4.2 Perfil propio
+
+```http
+GET /api/v1/usuarios/me/
+Authorization: Bearer <jwt_access>
 ```
 
-### Paso 4 — Preview de NCF
+Actualizar perfil propio:
 
+```http
+PATCH /api/v1/usuarios/me/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
 ```
+
+```json
+{
+  "nombre": "Juan",
+  "apellido": "Pérez"
+}
+```
+
+Cambiar password:
+
+```http
+POST /api/v1/usuarios/me/change-password/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "password_actual": "Test123456",
+  "password_nueva": "NuevaClave123"
+}
+```
+
+### 4.3 Crear empresa
+
+```http
+POST /api/v1/empresas/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "rnc": "131793916",
+  "razon_social": "Empresa Demo SRL",
+  "nombre_comercial": "Demo POS",
+  "ambiente": "testecf",
+  "estado": "PENDIENTE_CERTIFICADO",
+  "activa": true
+}
+```
+
+### 4.4 Crear plan
+
+```http
+POST /api/v1/planes/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "nombre": "Plan Inicial",
+  "descripcion": "Plan de prueba para Postman",
+  "limite_comprobantes": 1000,
+  "precio_mensual": "1500.00",
+  "precio_anual": "15000.00",
+  "ciclo_disponible": "AMBOS",
+  "dias_gracia": 5,
+  "tipos_ecf_permitidos": [31, 32, 41],
+  "activo": true,
+  "orden": 1
+}
+```
+
+### 4.5 Crear suscripcion
+
+```http
+POST /api/v1/suscripciones/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "empresa": "<empresa_uuid>",
+  "plan": "<plan_uuid>",
+  "ciclo": "MENSUAL",
+  "estado": "ACTIVA",
+  "fecha_inicio": "2026-05-15",
+  "fecha_renovacion": "2026-06-15",
+  "precio_pagado": "1500.00"
+}
+```
+
+### 4.6 Crear paquete de comprobantes
+
+```http
+POST /api/v1/paquetes/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "empresa": "<empresa_uuid>",
+  "suscripcion": "<suscripcion_uuid>",
+  "plan": "<plan_uuid>",
+  "total_comprobantes": 1000,
+  "comprobantes_usados": 0,
+  "estado": "ACTIVO",
+  "origen": "SUSCRIPCION",
+  "fecha_vencimiento": "2026-06-15T23:59:59Z"
+}
+```
+
+### 4.7 Crear API Key
+
+```http
+POST /api/v1/api-keys/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "empresa": "<empresa_uuid>",
+  "nombre": "POS Sucursal Norte",
+  "scopes": [
+    "comprobantes:crear",
+    "comprobantes:consultar",
+    "secuenciales:consultar"
+  ],
+  "allowed_ips": ["190.0.2.10", "190.0.2.0/24"],
+  "rate_limit_cantidad": 100,
+  "rate_limit_ventana": "HOUR",
+  "expira_at": "2026-12-31T23:59:59Z",
+  "activa": true
+}
+```
+
+Respuesta importante:
+
+```json
+{
+  "id": "<uuid>",
+  "empresa": "<empresa_uuid>",
+  "nombre": "POS Sucursal Norte",
+  "prefix": "131793916",
+  "scopes": ["comprobantes:crear", "comprobantes:consultar"],
+  "allowed_ips": ["190.0.2.10"],
+  "activa": true,
+  "token": "131793916_xxxxxxxxxxxxxxxxx"
+}
+```
+
+Ese `token` se guarda en el POS y se usa como `Authorization: Api-Key ...`.
+
+### 4.8 Rotar o revocar API Key
+
+Revocar:
+
+```http
+POST /api/v1/api-keys/{id}/revocar/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "motivo": "Key comprometida"
+}
+```
+
+Rotar:
+
+```http
+POST /api/v1/api-keys/{id}/rotar/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "nombre": "POS Norte 2",
+  "expira_at": "2027-01-01T00:00:00Z"
+}
+```
+
+### 4.9 Crear secuencial
+
+```http
+POST /api/v1/secuenciales/
+Authorization: Bearer <jwt_access>
+Content-Type: application/json
+```
+
+```json
+{
+  "empresa": "<empresa_uuid>",
+  "tipo_ecf": 31,
+  "ultimo_numero": 0,
+  "minimo_asignado": 1,
+  "maximo_asignado": 9999999999,
+  "bloqueado": false,
+  "motivo_bloqueo": ""
+}
+```
+
+Ver preview:
+
+```http
 GET /api/v1/secuenciales/{id}/preview/
+Authorization: Bearer <jwt_access>
 ```
 
----
+Bloquear:
 
-## 10) Endpoints mínimos recomendados para POS (sandbox)
-
-### Lectura (Api-Key)
-
-- `GET /api/v1/secuenciales/`
-- `GET /api/v1/secuenciales/{id}/preview/`
-- `GET /api/v1/empresas/{id}/comprobantes/`
-- `GET /api/v1/empresas/{id}/suscripcion/`
-- `GET /api/v1/pagos/historial/?empresa={id}` — historial de pagos de la empresa
-
-### Emisión (Api-Key + PIN .p12)
-
-Cuando estén disponibles:
-
-| Método | Endpoint | Body adicional |
-|--------|----------|----------------|
-| POST | /api/v1/comprobantes/emitir/ | `{ "cert_pin": "...", "comprobante": {...} }` |
-
----
-
-## 11) Checklist final (antes de habilitar a un POS)
-
-- [ ] Empresa creada
-- [ ] Certificado .p12 cargado en almacenamiento externo
-- [ ] Suscripción activa
-- [ ] Paquetes activos
-- [ ] API Key generada con prefijo RNC
-- [ ] API Key entregada al POS
-- [ ] (Opcional) IPs permitidas cargadas
-- [ ] Pruebas con Postman OK (lectura + emisión)
-
----
-
-## 12) Consumo desde Frontend (JWT)
-
-Guía para aplicaciones web/panel administrativo que consumen la API usando autenticación JWT.
-
-### 12.1 Autenticación
-
-```
-POST /api/v1/auth/login/
+```http
+POST /api/v1/secuenciales/{id}/bloquear/
+Authorization: Bearer <jwt_access>
 Content-Type: application/json
+```
 
+```json
 {
-  "username": "admin@ejemplo.com",
-  "password": "********"
-}
-
-Response 200:
-{
-  "access": "eyJhbGciOiJI...",
-  "refresh": "eyJhbGciOiJSUzI1..."
+  "motivo": "Mantenimiento"
 }
 ```
 
-### 12.2 Uso del token
+Desbloquear:
 
-Incluir en todos los requests:
-
+```http
+POST /api/v1/secuenciales/{id}/desbloquear/
+Authorization: Bearer <jwt_access>
 ```
-Authorization: Bearer eyJhbGciOiJI...
-```
 
-### 12.3 Refrescar token
+### 4.10 Crear pago
 
-Cuando el `access_token` expire:
-
-```
-POST /api/v1/auth/token/refresh/
+```http
+POST /api/v1/pagos/
+Authorization: Bearer <jwt_access>
 Content-Type: application/json
+```
 
+```json
 {
-  "refresh": "eyJhbGciOiJSUzI1..."
-}
-
-Response 200:
-{
-  "access": "eyJhbGciOiJSUzI1..."
+  "empresa": "<empresa_uuid>",
+  "suscripcion": "<suscripcion_uuid>",
+  "plan": "<plan_uuid>",
+  "monto": "1500.00",
+  "moneda": "DOP",
+  "metodo_pago": "TRANSFERENCIA",
+  "referencia": "TRX-001",
+  "fecha_pago": "2026-05-15T10:30:00Z",
+  "fecha_corte": 15,
+  "observaciones": "Pago de prueba"
 }
 ```
 
-### 12.4 Interceptor recomendado (axios)
+Confirmar pago:
 
-```javascript
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: 'https://sandbox-derejfact.derejsoft.com/api/v1/',
-});
-
-// Interceptor para agregar JWT
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Interceptor para refrescar token en 401
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      const refresh = localStorage.getItem('refresh_token');
-      if (refresh) {
-        try {
-          const { data } = await axios.post(
-            'https://sandbox-derejfact.derejsoft.com/api/v1/auth/token/refresh/',
-            { refresh }
-          );
-          localStorage.setItem('access_token', data.access);
-          error.config.headers.Authorization = `Bearer ${data.access}`;
-          return api(error.config);
-        } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+```http
+POST /api/v1/pagos/{id}/confirmar/
+Authorization: Bearer <jwt_access>
 ```
 
-### 12.5 Endpoints de panel (JWT requerido)
+Rechazar pago:
 
-| Método | Ruta | Uso |
-|--------|------|-----|
-| GET/POST | `/api/v1/usuarios/` | CRUD usuarios (SUPERADMIN) |
-| GET/PUT/PATCH | `/api/v1/usuarios/me/` | Perfil propio |
-| POST | `/api/v1/usuarios/me/change-password/` | Cambiar contraseña propia |
-| GET/POST | `/api/v1/empresas/` | CRUD empresas |
-| GET/POST | `/api/v1/planes/` | CRUD planes |
-| GET/POST | `/api/v1/suscripciones/` | CRUD suscripciones |
-| GET/POST | `/api/v1/paquetes/` | CRUD paquetes |
-| GET/POST | `/api/v1/pagos/` | CRUD pagos |
-| POST | `/api/v1/pagos/{id}/confirmar/` | Confirmar pago |
-| POST | `/api/v1/pagos/{id}/rechazar/` | Rechazar pago |
-| GET | `/api/v1/pagos/historial/` | Historial de pagos |
-| GET/POST | `/api/v1/api-keys/` | CRUD API Keys |
-| POST | `/api/v1/api-keys/{id}/revocar/` | Revocar key |
-| POST | `/api/v1/api-keys/{id}/rotar/` | Rotar key |
-| GET/POST | `/api/v1/secuenciales/` | CRUD secuenciales |
-| POST | `/api/v1/secuenciales/{id}/bloquear/` | Bloquear secuencial |
-| POST | `/api/v1/secuenciales/{id}/desbloquear/` | Desbloquear secuencial |
+```http
+POST /api/v1/pagos/{id}/rechazar/
+Authorization: Bearer <jwt_access>
+```
 
-### 12.6 Roles y alcance
+Historial de pagos:
 
-| Rol | Acceso |
-|-----|--------|
-| SUPERADMIN | Todos los endpoints CRUD |
-| ADMIN_EMPRESA | Lectura + escritura limitada a su empresa |
-| USUARIO_EMPRESA | Solo su perfil (`/usuarios/me/`) |
+```http
+GET /api/v1/pagos/historial/?empresa=<empresa_uuid>
+Authorization: Bearer <jwt_access>
+```
 
-### 12.7 Buenas prácticas Frontend
+## 5. Consultas utiles para Postman
 
-- Guardar tokens en `localStorage` o `HttpOnly cookies`
-- Implementar interceptor de refresh automático
-- Redirigir a login en 401 si el refresh falla
-- No exponer API Keys en código frontend
-- Usar variables de entorno para la base URL
+### Empresa activa de una key
 
----
+```http
+GET /api/v1/empresas/
+Authorization: Api-Key <token_completo>
+```
 
-## 13) Buenas prácticas generales
+### Suscripcion activa de una empresa
 
-- No exponer la API Key en front-end público
-- Rotar manualmente si sospecha de compromiso
-- El PIN del .p12 debe viajar cifrado (TLS) — nunca en texto plano por canales no seguros
-- Revisar consumo y logs periódicamente
-- Humanos → JWT. POS → API Key (nunca mezclar)
+```http
+GET /api/v1/empresas/{id}/suscripcion/
+Authorization: Bearer <jwt_access>
+```
+
+### Paquetes activos de una empresa
+
+```http
+GET /api/v1/empresas/{id}/comprobantes/
+Authorization: Bearer <jwt_access>
+```
+
+### Listados generales
+
+```http
+GET /api/v1/planes/
+GET /api/v1/suscripciones/
+GET /api/v1/paquetes/
+GET /api/v1/api-keys/
+GET /api/v1/secuenciales/
+GET /api/v1/pagos/
+```
+
+## 6. Lo que no debes probar todavia
+
+No pierdas tiempo en estos endpoints porque el codigo actual no tiene vistas reales:
+
+- `POST /api/v1/comprobantes/emitir/`
+- `POST /api/v1/comprobantes/nota-credito/`
+- `POST /api/v1/comprobantes/nota-debito/`
+- `GET /api/v1/comprobantes/{id}/`
+- cualquier ruta de `dgii/`
+- cualquier ruta de `webhooks/`
+
+Esas rutas aparecen en la documentacion vieja, pero aun no existen en el proyecto.
+
+## 7. Flujo recomendado de prueba en Postman
+
+1. Hacer login con un usuario `SUPERADMIN`.
+2. Guardar `access` en `jwtAccess`.
+3. Crear empresa.
+4. Crear plan.
+5. Crear suscripcion.
+6. Crear paquete.
+7. Crear API Key.
+8. Probar lectura con `Authorization: Api-Key <token>`.
+9. Crear secuencial y probar `preview`.
+10. Crear pago y luego confirmar o rechazar.
+
+## 8. Resumen de JSON que realmente necesitas
+
+- Login JWT: `email` + `password`
+- Cambio de clave: `password_actual` + `password_nueva`
+- Empresa: `rnc`, `razon_social`, `nombre_comercial`, `ambiente`, `estado`, `activa`
+- Plan: `nombre`, `descripcion`, `limite_comprobantes`, `precio_mensual`, `precio_anual`, `ciclo_disponible`, `dias_gracia`, `tipos_ecf_permitidos`, `activo`, `orden`
+- Suscripcion: `empresa`, `plan`, `ciclo`, `estado`, `fecha_inicio`, `fecha_renovacion`, `precio_pagado`
+- Paquete: `empresa`, `suscripcion`, `plan`, `total_comprobantes`, `comprobantes_usados`, `estado`, `origen`, `fecha_vencimiento`
+- API Key: `empresa`, `nombre`, `scopes`, `allowed_ips`, `rate_limit_cantidad`, `rate_limit_ventana`, `expira_at`, `activa`
+- Secuencial: `empresa`, `tipo_ecf`, `ultimo_numero`, `minimo_asignado`, `maximo_asignado`, `bloqueado`, `motivo_bloqueo`
+- Pago: `empresa`, `suscripcion`, `plan`, `monto`, `moneda`, `metodo_pago`, `referencia`, `fecha_pago`, `fecha_corte`, `observaciones`
+
+## 9. Nota importante
+
+La API Key no usa `Bearer`. Para POS siempre es:
+
+```http
+Authorization: Api-Key <token_completo>
+```
+
+Y para el panel humano siempre es:
+
+```http
+Authorization: Bearer <jwt_access>
+```
