@@ -3,6 +3,7 @@ from dateutil.relativedelta import relativedelta
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -29,20 +30,16 @@ class PagoViewSet(viewsets.ModelViewSet):
         empresa = serializer.validated_data['empresa']
         suscripcion = serializer.validated_data['suscripcion']
 
-        if not empresa.activo:
-            raise serializer.ValidationError(
-                {"empresa": "La empresa no está activa."}
-            )
+        if not empresa.activa:
+            raise ValidationError({"empresa": "La empresa no está activa."})
 
         if not suscripcion:
-            raise serializer.ValidationError(
-                {"suscripcion": "La empresa debe tener una suscripción."}
-            )
+            raise ValidationError(
+                {"suscripcion": "La empresa debe tener una suscripción."})
 
         if suscripcion.estado not in [Suscripcion.ESTADO_ACTIVA, Suscripcion.ESTADO_VENCIDA, Suscripcion.ESTADO_SUSPENDIDA]:
-            raise serializer.ValidationError(
-                {"suscripcion": "La suscripción no está en un estado válido para crear pago."}
-            )
+            raise ValidationError(
+                {"suscripcion": "La suscripción no está en un estado válido para crear pago."})
 
         serializer.save()
 
@@ -113,9 +110,10 @@ class PagoViewSet(viewsets.ModelViewSet):
             suscripcion.plan = pago.plan
             suscripcion.save()
 
-            fecha_vencimiento = timezone.make_aware(fecha_fin) if suscripcion.ciclo == Suscripcion.CICLO_MENSUAL else None
-            if suscripcion.ciclo == Suscripcion.CICLO_ANUAL:
-                fecha_vencimiento = timezone.make_aware(fecha_fin)
+            fecha_vencimiento = None
+            if suscripcion.ciclo in [Suscripcion.CICLO_MENSUAL, Suscripcion.CICLO_ANUAL]:
+                fecha_vencimiento = timezone.make_aware(
+                    datetime.combine(fecha_fin, datetime.min.time()))
 
             paquete = PaqueteComprobantes.objects.create(
                 empresa=pago.empresa,
@@ -184,5 +182,6 @@ class PagoViewSet(viewsets.ModelViewSet):
             qs = qs.filter(empresa_id=empresa_id)
 
         page = self.paginate_queryset(qs)
-        serializer = HistorialPagoSerializer(page, many=True, context=self.get_serializer_context())
+        serializer = HistorialPagoSerializer(
+            page, many=True, context=self.get_serializer_context())
         return self.get_paginated_response(serializer.data)
