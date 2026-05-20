@@ -2,8 +2,8 @@ from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['api.derejfact.com', 'TU_IP_DE_SERVIDOR']
-
+# ALLOWED_HOSTS = ['api.derejfact.com', 'TU_IP_DE_SERVIDOR']
+ALLOWED_HOSTS = env('ALLOWED_HOSTS', '').split(',') + ['testserver']
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -31,6 +31,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # para Nginx
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "https://derejfact.com",
+    "https://samboxderejfact.derejfact.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 

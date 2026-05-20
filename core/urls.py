@@ -19,15 +19,22 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
 
+from .api_router import router
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # --- API ---
-    path('api/v1/users/', include('users.urls', namespace='users')),
-    path('api/v1/empresas/', include('empresas.urls', namespace='empresas')),
-    path('api/v1/api-keys/', include('api_keys.urls', namespace='api_keys')),
-    path('api/v1/subscriptions/', include('subscriptions.urls', namespace='subscriptions')),
-    path('api/v1/sequences/', include('sequences.urls', namespace='sequences')),
+    # --- API Router Central ---
+    path('api/v1/', include(router.urls)),
+
+    # --- Auth (separado por claridad) ---
+    path('api/v1/auth/', include('users.auth_urls')),
+
+    # --- Inclusión legacy (compatible con apps que expongan rutas extras) ---
+    path('api/v1/', include('dgii.urls')),
+    path('api/v1/', include('webhooks.urls')),
+    path('api/v1/', include('audit.urls')),
+    path('api/v1/', include('comprobantes.urls')),
 ]
 # Solo en desarrollo: permitir que Django sirva archivos media y static
 if settings.DEBUG:

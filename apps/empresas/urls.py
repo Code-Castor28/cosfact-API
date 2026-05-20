@@ -5,7 +5,7 @@ from .views import EmpresaViewSet
 app_name = "empresas"
 
 router = DefaultRouter()
-router.register(r"", EmpresaViewSet, basename="empresa")
+router.register(r"empresas", EmpresaViewSet, basename="empresa")
 
 urlpatterns = [
     path("", include(router.urls)),

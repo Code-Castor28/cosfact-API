@@ -13,9 +13,12 @@ REGLAS DE NEGOCIO:
 - Un cliente puede tener múltiples paquetes comprados; se consume en orden FIFO.
 """
 import uuid
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
 from django.db import models, transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 
 
 # ─────────────────────────────────────────────
@@ -52,6 +55,12 @@ class Plan(models.Model):
         max_length=10,
         choices=CICLOS,
         default=CICLO_AMBOS,
+    )
+
+    dias_gracia = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MaxValueValidator(15)],
+        help_text="Días de gracia después de la fecha de renovación (0-15)."
     )
 
     # JSON: lista de tipos e-CF permitidos, ej: [31, 32, 41]
@@ -146,7 +155,19 @@ class Suscripcion(models.Model):
 
     @property
     def esta_activa(self):
-        return self.estado == self.ESTADO_ACTIVA and self.fecha_renovacion >= timezone.now().date()
+        if self.estado != self.ESTADO_ACTIVA:
+            return False
+        
+        fecha_renovacion = self.fecha_renovacion
+        if fecha_renovacion >= timezone.now().date():
+            return True
+        
+        dias_gracia = getattr(self.plan, 'dias_gracia', 0) or 0
+        if dias_gracia == 0:
+            return False
+        
+        fecha_limite_gracia = fecha_renovacion + timedelta(days=dias_gracia)
+        return timezone.now().date() <= fecha_limite_gracia
 
 
 # ─────────────────────────────────────────────
@@ -228,9 +249,53 @@ class PaqueteComprobantes(models.Model):
     def disponible(self):
         if self.estado != self.ESTADO_ACTIVO:
             return False
+        
         if self.fecha_vencimiento and timezone.now() > self.fecha_vencimiento:
-            return False
+            dias_gracia = 0
+            if self.suscripcion:
+                dias_gracia = getattr(self.suscripcion.plan, 'dias_gracia', 0) or 0
+                if dias_gracia > 0:
+                    fecha_limite = self.fecha_vencimiento + timedelta(days=dias_gracia)
+                    if timezone.now() > fecha_limite:
+                        return False
+                else:
+                    return False
+            else:
+                return False
+        
         return self.comprobantes_restantes > 0
+
+    def clean(self):
+        if self.plan and self.total_comprobantes > self.plan.limite_comprobantes:
+            raise ValidationError({
+                "total_comprobantes": (
+                    f"El plan '{self.plan.nombre}' solo permite "
+                    f"{self.plan.limite_comprobantes} comprobantes."
+                )
+            })
+        
+        if self.suscripcion and self.fecha_vencimiento:
+            fecha_inicio = self.suscripcion.fecha_inicio or timezone.now().date()
+            ciclo = self.suscripcion.ciclo
+            
+            if ciclo == Suscripcion.CICLO_MENSUAL:
+                max_fecha = fecha_inicio + relativedelta(months=1)
+                if self.fecha_vencimiento.date() > max_fecha:
+                    raise ValidationError({
+                        "fecha_vencimiento": (
+                            f"Ciclo MENSUAL. La fecha de vencimiento no puede "
+                            f"exceder 1 mes ({max_fecha})."
+                        )
+                    })
+            elif ciclo == Suscripcion.CICLO_ANUAL:
+                max_fecha = fecha_inicio + relativedelta(years=1)
+                if self.fecha_vencimiento.date() > max_fecha:
+                    raise ValidationError({
+                        "fecha_vencimiento": (
+                            f"Ciclo ANUAL. La fecha de vencimiento no puede "
+                            f"exceder 1 año ({max_fecha})."
+                        )
+                    })
 
     def consumir_comprobante(self) -> bool:
         """

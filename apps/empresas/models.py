@@ -101,6 +101,11 @@ class Empresa(models.Model):
         """Permite usar Empresa como request.user en DRF (Api-Key auth)."""
         return True
 
+    # Seguridad: rol=None para que user.rol no lance AttributeError
+    # cuando una Empresa se usa como request.user (Api-Key auth).
+    # Así, permisos como IsSuperAdmin fallan gracefully en vez de crash.
+    rol = None
+
     @property
     def certificado_vence_pronto(self):
         """Alerta si el certificado vence en los próximos 30 días."""

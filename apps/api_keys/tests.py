@@ -75,3 +75,21 @@ class ApiKeyApiTests(APITestCase):
 
         key.refresh_from_db()
         self.assertFalse(key.activa)
+
+    def test_api_key_cannot_access_admin_endpoints(self):
+        key, token = ApiKey.crear(
+            empresa=self.empresa,
+            nombre="POS Test",
+            creado_por=self.superadmin,
+            scopes=["comprobantes:crear"],
+            allowed_ips=[],
+            rate_limit_cantidad=100,
+            rate_limit_ventana=ApiKey.VENTANA_HORA,
+        )
+
+        self.client.force_authenticate(user=None)
+        resp = self.client.get(
+            self.base_url,
+            HTTP_AUTHORIZATION=f"Api-Key {token}",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)

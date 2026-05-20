@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+from datetime import timedelta
+import sys
 from pathlib import Path
 import os
 import environ
@@ -40,7 +42,6 @@ AUTH_USER_MODEL = 'users.Usuario'
 
 # --- CONFIGURACIÓN DE APPS ---
 # Esto permite que Django encuentre tus apps dentro de la carpeta /apps
-import sys
 sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 
 # Application definition
@@ -54,10 +55,11 @@ INSTALLED_APPS = [
     # Libs externas
     'rest_framework',
     'corsheaders',
-    # Tus Apps 
+    # Tus Apps
     'users',
     'empresas',
     'subscriptions',
+    'pagos',
     'api_keys',
     'sequences',
     'comprobantes',
@@ -102,7 +104,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
- 
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -121,7 +123,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-
 
 
 # ─── Internacionalización ─────────────────────────────────────────────────────
@@ -196,7 +197,6 @@ AUTH_PASSWORD_VALIDATORS = [
 SESSION_COOKIE_AGE = 28800          # 8 horas (no semanas)
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
-from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),

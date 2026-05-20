@@ -5,7 +5,7 @@ from .views import SecuencialViewSet
 app_name = "sequences"
 
 router = DefaultRouter()
-router.register(r"", SecuencialViewSet, basename="secuencial")
+router.register(r"secuenciales", SecuencialViewSet, basename="secuencial")
 
 urlpatterns = [
     path("", include(router.urls)),

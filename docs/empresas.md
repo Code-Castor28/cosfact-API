@@ -4,17 +4,16 @@ Documentacion de endpoints para gestion de empresas (tenants del SaaS).
 
 ## Autenticacion
 
-Soporta dos tipos de autenticación:
+Soporta dos tipos de autenticación según el actor:
 
-| Tipo | Header | Usuario |
-| --- | --- | --- |
-| JWT (Admin) | `Authorization: Bearer <JWT>` | SUPERADMIN / ADMIN_EMPRESA |
-| API Key (POS) | `Authorization: Api-Key <token>` | Empresa (solo lectura) |
+| Actor | Tipo | Header | Acceso |
+| --- | --- | --- | --- |
+| SUPERADMIN (humano) | JWT | `Authorization: Bearer <JWT>` | CRUD completo |
+| ADMIN_EMPRESA (humano) | JWT | `Authorization: Bearer <JWT>` | Solo lectura de su empresa |
+| POS (sistema) | API Key | `Authorization: Api-Key <token>` | Solo lectura de su empresa |
+| USUARIO_EMPRESA | JWT | `Authorization: Bearer <JWT>` | Sin acceso a este módulo |
 
-- SUPERADMIN: CRUD completo sobre cualquier empresa.
-- ADMIN_EMPRESA (JWT): solo lectura de su propia empresa.
-- Empresa (Api-Key): solo lectura de su propia empresa.
-- USUARIO_EMPRESA: sin acceso a este modulo.
+**Regla:** humanos usan JWT, sistemas usan Api-Key.
 
 ## Endpoints
 
