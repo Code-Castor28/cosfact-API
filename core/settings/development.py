@@ -1,3 +1,4 @@
+import logging
 from .base import *
 
 DEBUG = True
@@ -24,20 +25,48 @@ CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
 # Logs detallados en desarrollo
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
-        'console': {'class': 'logging.StreamHandler'},
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'sentry': {
+            'level': 'ERROR',
+            'class': 'sentry_sdk.integrations.logging.EventHandler',
+        },
     },
     'root': {
-        'handlers': ['console'],
+        'handlers': ['console', 'sentry'],
         'level': 'DEBUG',
     },
     'loggers': {
         'django.db.backends': {
             'handlers': ['console'],
             'level': 'DEBUG',   # muestra todas las queries SQL
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console', 'sentry'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console', 'sentry'],
+            'level': 'INFO',
             'propagate': False,
         },
     },
