@@ -43,3 +43,4 @@ dmypy.json
 .pyre_check/
 postman/
 .postman/
+venv_linux/

@@ -21,8 +21,22 @@ from django.urls import path, include
 
 from .api_router import router
 
+# ─── Debug: Sentry error testing ──────────────────────────────────────────────
+
+
+def trigger_sentry_error(request):
+    """Trigger a test error to verify Sentry is working.
+
+    Usage: http://localhost:8000/sentry-debug/
+    """
+    division_by_zero = 1 / 0  # Intentional error for testing
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+
+    # --- Debug ---
+    path('sentry-debug/', trigger_sentry_error) if settings.DEBUG else None,
 
     # --- API Router Central ---
     path('api/v1/', include(router.urls)),
@@ -36,6 +50,9 @@ urlpatterns = [
     path('api/v1/', include('audit.urls')),
     path('api/v1/', include('comprobantes.urls')),
 ]
+# Limpiar None values si DEBUG=False
+urlpatterns = [url for url in urlpatterns if url is not None]
+
 # Solo en desarrollo: permitir que Django sirva archivos media y static
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL,

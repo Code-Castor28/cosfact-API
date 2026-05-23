@@ -1,9 +1,14 @@
+import os
+
 from .base import *
 
 DEBUG = False
 
 # ALLOWED_HOSTS = ['api.derejfact.com', 'TU_IP_DE_SERVIDOR']
-ALLOWED_HOSTS = env('ALLOWED_HOSTS', '').split(',') + ['testserver']
+allowed_hosts_raw = env.list('ALLOWED_HOSTS', default=[])  # type: ignore
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_raw if host.strip()]
+ALLOWED_HOSTS += ['testserver']
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -35,7 +40,11 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-# ─── Logs en producción (a archivo, no consola) ───────────────────────────────
+# ─── Logs en producción (a archivo, no consola) ─────────────────────────────── Así obtienes una cadena y el type checker lo entiende
+LOG_DIR = env.str('LOG_DIR', default=os.path.join(BASE_DIR, 'logs'))
+os.makedirs(LOG_DIR, exist_ok=True)          # LOG_DIR es str
+LOG_FILE = os.path.join(LOG_DIR, 'django.log')  # funciona
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -48,7 +57,7 @@ LOGGING = {
     'handlers': {
         'file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/var/log/derejfact/django.log',
+            'filename': LOG_FILE,
             'maxBytes': 10 * 1024 * 1024,  # 10 MB
             'backupCount': 5,
             'formatter': 'verbose',

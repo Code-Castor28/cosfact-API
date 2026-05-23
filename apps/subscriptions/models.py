@@ -136,7 +136,7 @@ class Suscripcion(models.Model):
     fecha_renovacion = models.DateField()
 
     # Precio que pagó al momento de contratar (puede cambiar el plan, el precio histórico queda aquí)
-    precio_pagado = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    precio_pagado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
 
     creado_at = models.DateTimeField(auto_now_add=True)
     actualizado_at = models.DateTimeField(auto_now=True)

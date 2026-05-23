@@ -12,12 +12,21 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from datetime import timedelta
 import sys
+import logging
 from pathlib import Path
 import os
 import environ
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
 
 env = environ.Env(
-    DEBUG=(bool, False)
+    DEBUG=(bool, False),
+    ENVIRONMENT=(str, 'development'),
+    APP_VERSION=(str, 'unknown'),
+    SENTRY_DSN=(str, None),
+    ALLOWED_HOSTS=(list, []),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -204,3 +213,26 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# ─── Sentry (Error tracking & logging) ────────────────────────────────────────
+ENVIRONMENT: str = env.str('ENVIRONMENT', default='development')
+APP_VERSION: str = env.str('APP_VERSION', default='unknown')
+_SENTRY_DSN_RAW: str = env.str('SENTRY_DSN', default='')
+SENTRY_DSN: str | None = _SENTRY_DSN_RAW or None
+
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            LoggingIntegration(
+                level=logging.INFO,        # Captura logs >= INFO
+                event_level=logging.ERROR  # Envía eventos ERROR a Sentry
+            ),
+        ],
+        traces_sample_rate=0.1,  # 10% de traces para performance monitoring
+        send_default_pii=True,   # Incluir datos de usuario (email, IP, etc)
+        environment=ENVIRONMENT,
+        release=APP_VERSION,
+    )

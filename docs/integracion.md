@@ -26,7 +26,8 @@ Rutas disponibles bajo `/api/v1/`:
 - `secuenciales/{id}/bloquear/`
 - `secuenciales/{id}/desbloquear/`
 - `pagos/`
-- `pagos/{id}/confirmar/`
+- `pagos/{id}/actualizar_confirmacion/` (NUEVO)
+- `pagos/{id}/confirmar/` (deprecated, usar actualizar_confirmacion)
 - `pagos/{id}/rechazar/`
 - `pagos/historial/`
 
@@ -388,49 +389,156 @@ POST /api/v1/secuenciales/{id}/desbloquear/
 Authorization: Bearer <jwt_access>
 ```
 
-### 4.10 Crear pago
+### 4.10 Pagos (NUEVO FLUJO)
+
+#### ⚠️ IMPORTANTE: POST deshabilitado
+
+**Ya NO se pueden crear pagos manualmente** via POST. Los pagos se generan automáticamente 15 días antes del vencimiento de la suscripción.
+
+**Ver pagos pendientes:**
 
 ```http
-POST /api/v1/pagos/
+GET /api/v1/pagos/
+Authorization: Bearer <jwt_access>
+```
+
+Por defecto retorna solo pagos en estado `PENDIENTE`. Ejemplo de respuesta:
+
+```json
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": "<pago_uuid>",
+      "empresa": "<empresa_uuid>",
+      "empresa_nombre": "Empresa Demo SRL",
+      "suscripcion": "<suscripcion_uuid>",
+      "plan": "<plan_uuid>",
+      "plan_nombre": "Plan Inicial",
+      "monto": "1500.00",
+      "moneda": "DOP",
+      "metodo_pago": "",
+      "referencia": "",
+      "fecha_pago": "2026-05-21T00:00:00Z",
+      "fecha_corte": 15,
+      "observaciones": "",
+      "estado": "PENDIENTE",
+      "confirmado_por": null,
+      "fecha_confirmacion": null,
+      "creado_at": "2026-05-06T00:00:00Z",
+      "actualizado_at": "2026-05-06T00:00:00Z"
+    }
+  ]
+}
+```
+
+**Confirmar pago (NUEVO ENDPOINT):**
+
+```http
+PATCH /api/v1/pagos/{id}/actualizar_confirmacion/
 Authorization: Bearer <jwt_access>
 Content-Type: application/json
 ```
 
+Body (SOLO estos campos son editables):
+
 ```json
 {
-  "empresa": "<empresa_uuid>",
-  "suscripcion": "<suscripcion_uuid>",
-  "plan": "<plan_uuid>",
-  "monto": "1500.00",
-  "moneda": "DOP",
   "metodo_pago": "TRANSFERENCIA",
-  "referencia": "TRX-001",
-  "fecha_pago": "2026-05-15T10:30:00Z",
-  "fecha_corte": 15,
-  "observaciones": "Pago de prueba"
+  "referencia": "TRF-12345"
 }
 ```
 
-Confirmar pago:
+✅ Campos editables:
+- `metodo_pago` (EFECTIVO, TRANSFERENCIA, DEPOSITO, CHEQUE, OTRO)
+- `referencia` (Nº de comprobante/boleta)
+- `observaciones` (opcional)
+
+🔒 Campos NO editables (siempre read-only):
+- `monto` (viene del plan)
+- `moneda`
+- `plan`
+- `empresa`
+- `suscripcion`
+- `fecha_pago`
+- `fecha_corte`
+
+⚠️ **Validación importante:**
+Si `metodo_pago` ≠ `EFECTIVO`, el campo `referencia` es **OBLIGATORIO**.
+
+Ejemplo:
+```json
+{
+  "metodo_pago": "TRANSFERENCIA",
+  "referencia": "TRF-20260521-001"
+}
+```
+
+Respuesta exitosa (201):
+
+```json
+{
+  "pago": {
+    "id": "<pago_uuid>",
+    "estado": "CONFIRMADO",
+    "confirmado_por": "<user_uuid>",
+    "fecha_confirmacion": "2026-05-21T10:30:00Z",
+    ...
+  },
+  "suscripcion": {
+    "id": "<suscripcion_uuid>",
+    "estado": "ACTIVA",
+    "fecha_inicio": "2026-05-21",
+    "fecha_renovacion": "2026-06-20"
+  },
+  "paquete": {
+    "id": "<paquete_uuid>",
+    "total_comprobantes": 1000,
+    "estado": "ACTIVO"
+  },
+  "historial": {
+    "id": "<historial_uuid>",
+    "periodo_mes": 5,
+    "periodo_ano": 2026,
+    "monto_pagado": "1500.00",
+    "comprobantes_asignados": 1000
+  }
+}
+```
+
+**Filtrar por estado:**
 
 ```http
-POST /api/v1/pagos/{id}/confirmar/
+GET /api/v1/pagos/?estado=CONFIRMADO
 Authorization: Bearer <jwt_access>
 ```
 
-Rechazar pago:
+Estados disponibles: `PENDIENTE`, `CONFIRMADO`, `RECHAZADO`
+
+**Ver historial completo:**
+
+```http
+GET /api/v1/pagos/historial/?empresa=<empresa_uuid>
+Authorization: Bearer <jwt_access>
+```
+
+**Rechazar pago** (si aplica):
 
 ```http
 POST /api/v1/pagos/{id}/rechazar/
 Authorization: Bearer <jwt_access>
 ```
 
-Historial de pagos:
+**Endpoint deprecated (mantener compatibilidad):**
 
 ```http
-GET /api/v1/pagos/historial/?empresa=<empresa_uuid>
+POST /api/v1/pagos/{id}/confirmar/
 Authorization: Bearer <jwt_access>
 ```
+
+⚠️ Este endpoint aún funciona pero está **DEPRECATED**. Usar `PATCH actualizar_confirmacion` en su lugar.
 
 ## 5. Consultas utiles para Postman
 
@@ -485,14 +593,118 @@ Esas rutas aparecen en la documentacion vieja, pero aun no existen en el proyect
 2. Guardar `access` en `jwtAccess`.
 3. Crear empresa.
 4. Crear plan.
-5. Crear suscripcion.
+5. Crear suscripcion con fecha de renovación a 5 días de hoy (para simular vencimiento en 15 días).
 6. Crear paquete.
 7. Crear API Key.
 8. Probar lectura con `Authorization: Api-Key <token>`.
 9. Crear secuencial y probar `preview`.
-10. Crear pago y luego confirmar o rechazar.
+10. **[AUTOMÁTICO]** Esperar a que la tarea de Celery cree el pago (00:00 diariamente) O hacer request manual:
+    ```bash
+    python manage.py shell
+    from apps.pagos.tasks import generar_pagos_automaticos
+    generar_pagos_automaticos()
+    ```
+11. `GET /api/v1/pagos/` - verás el pago creado automáticamente.
+12. `PATCH /api/v1/pagos/{id}/actualizar_confirmacion/` - confirmar con método de pago + referencia.
+13. Verificar que se actualizó suscripción, paquete e historial.
 
-## 8. Resumen de JSON que realmente necesitas
+## 8. [NUEVO] Cambios en el Flujo de Pagos (21 mayo 2026)
+
+### ¿Qué cambió?
+
+Se refactorizó completamente el sistema de pagos para alinearse con el modelo real del negocio:
+
+**ANTES:**
+- Pagos se creaban manualmente via POST
+- Monto era editable
+- Flujo confuso (crear → confirmar → pagar)
+
+**AHORA:**
+- Pagos se generan **automáticamente** 15 días antes del vencimiento
+- Monto es **read-only** (viene del plan)
+- Flujo claro: ver pagos pendientes → confirmar método de pago → transacción completada
+
+### Generación Automática
+
+**Tarea Celery Beat:**
+- Se ejecuta: **Diariamente a las 00:00**
+- Busca: Suscripciones que vencen en los próximos 15 días
+- Crea: Pago(estado=PENDIENTE, monto=plan.precio)
+- Valida: No hay otros pagos PENDIENTES simultáneamente (no adelantos)
+
+**Para probar manualmente:**
+```bash
+python manage.py shell
+from apps.pagos.tasks import generar_pagos_automaticos
+resultado = generar_pagos_automaticos()
+print(resultado)
+# {"status": "success", "pagos_creados": 2, "errores": 0, "total_procesadas": 5}
+```
+
+### Estados de Pago
+
+| Estado | Descripción |
+|--------|-------------|
+| `PENDIENTE` | Creado automáticamente, esperando confirmación de método de pago |
+| `CONFIRMADO` | Método de pago confirmado, suscripción activada, paquete generado |
+| `RECHAZADO` | Rechazado manualmente por admin |
+
+### Validaciones Nuevas
+
+1. **Referencia obligatoria para no-EFECTIVO**
+   - Si `metodo_pago` = TRANSFERENCIA/DEPOSITO/CHEQUE → `referencia` es OBLIGATORIO
+   - Error 400 si no se proporciona
+
+2. **No adelantos simultáneos**
+   - No puede haber 2+ pagos PENDIENTES del mismo cliente
+   - Previene confusión de múltiples deudas
+
+3. **Monto inmutable**
+   - No se puede cambiar el monto
+   - Viene del plan contratado
+   - Garantiza integridad financiera
+
+### Campos Read-Only (No editable)
+
+```
+- id
+- monto (viene del plan)
+- moneda
+- plan
+- empresa
+- suscripcion
+- fecha_pago
+- fecha_corte
+- estado
+- confirmado_por
+- fecha_confirmacion
+- creado_at
+- actualizado_at
+```
+
+### Campos Editables
+
+Solo al confirmar pago:
+```
+- metodo_pago (EFECTIVO, TRANSFERENCIA, DEPOSITO, CHEQUE, OTRO)
+- referencia (Nº comprobante/transferencia)
+- observaciones (opcional)
+```
+
+### Impacto en Integración
+
+**Para POS / Integraciones:**
+- ✅ No necesita crear pagos (se crean automáticos)
+- ✅ Solo hace GET para ver qué debe pagar
+- ✅ Hace PATCH para confirmar cómo pagó
+- ✅ Monto nunca cambia (fijo del plan)
+
+**Para Admin Dashboard:**
+- ✅ Filtrar por estado: `?estado=PENDIENTE|CONFIRMADO|RECHAZADO`
+- ✅ Ver historial completo: `/pagos/historial/?empresa=<uuid>`
+- ✅ Opción de rechazar pago (solo PENDIENTE)
+
+## 9. Resumen de JSON que realmente necesitas
 
 - Login JWT: `email` + `password`
 - Cambio de clave: `password_actual` + `password_nueva`
@@ -502,6 +714,7 @@ Esas rutas aparecen en la documentacion vieja, pero aun no existen en el proyect
 - Paquete: `empresa`, `suscripcion`, `plan`, `total_comprobantes`, `comprobantes_usados`, `estado`, `origen`, `fecha_vencimiento`
 - API Key: `empresa`, `nombre`, `scopes`, `allowed_ips`, `rate_limit_cantidad`, `rate_limit_ventana`, `expira_at`, `activa`
 - Secuencial: `empresa`, `tipo_ecf`, `ultimo_numero`, `minimo_asignado`, `maximo_asignado`, `bloqueado`, `motivo_bloqueo`
+- **[NUEVO] Confirmar Pago**: `metodo_pago`, `referencia` (si no es EFECTIVO), `observaciones` (opcional)
 - Pago: `empresa`, `suscripcion`, `plan`, `monto`, `moneda`, `metodo_pago`, `referencia`, `fecha_pago`, `fecha_corte`, `observaciones`
 
 ## 9. Nota importante

@@ -3,13 +3,24 @@ from .models import Pago, HistorialPago
 
 
 class PagoSerializer(serializers.ModelSerializer):
+    """
+    Serializer para listar y ver detalles de pagos PENDIENTES.
+    Todos los campos importantes (monto, plan, empresa) son READ-ONLY
+    para evitar modificaciones accidentales.
+    """
+    empresa_nombre = serializers.CharField(
+        source="empresa.nombre", read_only=True)
+    plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
+
     class Meta:
         model = Pago
         fields = [
             "id",
             "empresa",
+            "empresa_nombre",
             "suscripcion",
             "plan",
+            "plan_nombre",
             "monto",
             "moneda",
             "metodo_pago",
@@ -25,6 +36,15 @@ class PagoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "empresa",
+            "empresa_nombre",
+            "suscripcion",
+            "plan",
+            "plan_nombre",
+            "monto",
+            "moneda",
+            "fecha_pago",
+            "fecha_corte",
             "estado",
             "confirmado_por",
             "fecha_confirmacion",
@@ -33,8 +53,58 @@ class PagoSerializer(serializers.ModelSerializer):
         ]
 
 
+class PagoUpdateSerializer(serializers.ModelSerializer):
+    """
+    Serializer SOLO para actualizar método de pago y confirmar.
+    Solo permite editar:
+    - metodo_pago
+    - referencia
+    - observaciones
+
+    Todos los otros campos son read-only.
+    """
+
+    class Meta:
+        model = Pago
+        fields = [
+            "id",
+            "metodo_pago",
+            "referencia",
+            "observaciones",
+            "estado",
+        ]
+        read_only_fields = [
+            "id",
+            "estado",
+        ]
+
+    def validate(self, attrs):
+        """
+        Si metodo_pago != EFECTIVO, referencia es requerida.
+        """
+        # Obtener metodo_pago: del attrs o del objeto existente
+        instance = self.instance
+        metodo = attrs.get(
+            'metodo_pago', instance.metodo_pago if instance else None)
+        referencia = attrs.get(
+            'referencia', instance.referencia if instance else '').strip()
+
+        if metodo and metodo != Pago.METODO_EFECTIVO:
+            if not referencia:
+                raise serializers.ValidationError({
+                    "referencia": f"Requerida para pagos por {metodo}"
+                })
+
+        return attrs
+
+
 class PagoDetailSerializer(serializers.ModelSerializer):
-    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+    """
+    Serializer detallado para ver un pago específico.
+    Incluye nombres relacionados (empresa, plan, usuario) como read-only.
+    """
+    empresa_nombre = serializers.CharField(
+        source="empresa.nombre", read_only=True)
     empresa_rnc = serializers.CharField(source="empresa.rnc", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
     confirmado_por_username = serializers.CharField(
@@ -67,6 +137,16 @@ class PagoDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "empresa",
+            "empresa_nombre",
+            "empresa_rnc",
+            "suscripcion",
+            "plan",
+            "plan_nombre",
+            "monto",
+            "moneda",
+            "fecha_pago",
+            "fecha_corte",
             "estado",
             "confirmado_por",
             "confirmado_por_username",
@@ -77,7 +157,12 @@ class PagoDetailSerializer(serializers.ModelSerializer):
 
 
 class HistorialPagoSerializer(serializers.ModelSerializer):
-    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+    """
+    Serializer para el historial de pagos confirmados.
+    Todos los campos son read-only (es historial).
+    """
+    empresa_nombre = serializers.CharField(
+        source="empresa.nombre", read_only=True)
     empresa_rnc = serializers.CharField(source="empresa.rnc", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
 

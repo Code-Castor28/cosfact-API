@@ -55,7 +55,8 @@ class Pago(models.Model):
     )
 
     monto = models.DecimalField(max_digits=10, decimal_places=2)
-    moneda = models.CharField(max_length=10, choices=MONEDAS, default=MONEDA_DOP)
+    moneda = models.CharField(
+        max_length=10, choices=MONEDAS, default=MONEDA_DOP)
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO)
     referencia = models.CharField(max_length=100, blank=True)
     fecha_pago = models.DateTimeField()
@@ -80,6 +81,41 @@ class Pago(models.Model):
 
     creado_at = models.DateTimeField(auto_now_add=True)
     actualizado_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        """
+        Validaciones personalizadas:
+        1. Si metodo_pago != EFECTIVO, referencia es requerida
+        2. No puede haber otro pago PENDIENTE para el mismo cliente (no adelantos)
+        """
+        from django.core.exceptions import ValidationError
+
+        # Validación 1: Referencia obligatoria para métodos no-EFECTIVO
+        if (self.metodo_pago and
+            self.metodo_pago != self.METODO_EFECTIVO and
+                not self.referencia.strip()):
+            raise ValidationError({
+                'referencia': f'Requerida para pagos por {self.metodo_pago}'
+            })
+
+        # Validación 2: No adelantos (no múltiples PENDIENTES simultáneamente)
+        # Al crear (sin pk)
+        if self.estado == self.ESTADO_PENDIENTE and not self.pk:
+            existe_pendiente = Pago.objects.filter(
+                empresa=self.empresa,
+                estado=self.ESTADO_PENDIENTE,
+            ).exclude(pk=self.pk).exists()
+
+            if existe_pendiente:
+                raise ValidationError({
+                    'empresa': 'Ya existe un pago PENDIENTE para esta empresa. '
+                               'No se permiten adelantos simultáneos.'
+                })
+
+    def save(self, *args, **kwargs):
+        """Llamar clean() antes de guardar."""
+        self.clean()
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = "pagos"
