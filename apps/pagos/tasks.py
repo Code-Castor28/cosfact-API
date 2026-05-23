@@ -116,6 +116,22 @@ def generar_pagos_automaticos():
                     if precio_pagado and precio_pagado > Decimal('0'):
                         monto = precio_pagado
 
+                # Log de diagnóstico: mostrar plan, ciclo y precios antes de validar
+                try:
+                    logger.info(
+                        f"[PAGOS] Plan={suscripcion.plan.nombre} "
+                        f"plan_id={suscripcion.plan.id} "
+                        f"ciclo={suscripcion.ciclo} "
+                        f"precio_mensual={getattr(suscripcion.plan, 'precio_mensual', None)} "
+                        f"precio_anual={getattr(suscripcion.plan, 'precio_anual', None)} "
+                        f"precio_pagado_suscripcion={getattr(suscripcion, 'precio_pagado', None)}"
+                    )
+                    logger.info(
+                        f"[PAGOS] Precio seleccionado para Plan {suscripcion.plan.id}: {monto}")
+                except Exception:
+                    logger.debug(
+                        f"[PAGOS] Error al loggear precios para Plan {getattr(suscripcion.plan, 'id', 'unknown')}")
+
                 # Validar monto final
                 try:
                     if monto is None or Decimal(monto) <= Decimal('0'):
