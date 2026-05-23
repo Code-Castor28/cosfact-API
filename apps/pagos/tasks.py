@@ -34,7 +34,7 @@ def generar_pagos_automaticos():
     Se ejecuta: Diariamente a las 00:00 (vía celery beat)
 
     Retorna:
-        dict: { "status": "success", "pagos_creados": int, "errores": int }
+        dict: { "status": "success|partial_success|failed", "pagos_creados": int, "errores": int }
     """
     ahora = timezone.now()
     fecha_limite = ahora + timedelta(days=15)
@@ -135,18 +135,25 @@ def generar_pagos_automaticos():
                     logger.debug(
                         f"[PAGOS] Error al loggear precios para Plan {getattr(suscripcion.plan, 'id', 'unknown')}")
 
-                # Validar monto final
+                # Validar monto final con error controlado (sin skips silenciosos)
                 try:
-                    if monto is None or Decimal(monto) <= Decimal('0'):
-                        logger.warning(
-                            f"[PAGOS] Plan {suscripcion.plan.id} no tiene precio. "
-                            f"Saltando {suscripcion.empresa.rnc}"
-                        )
-                        continue
+                    monto_decimal = Decimal(
+                        monto) if monto is not None else None
                 except Exception:
-                    logger.warning(
-                        f"[PAGOS] Precio inválido para Plan {suscripcion.plan.id}: {monto}. "
-                        f"Saltando {suscripcion.empresa.rnc}"
+                    monto_decimal = None
+
+                if monto_decimal is None or monto_decimal <= Decimal('0'):
+                    errores += 1
+                    logger.error(
+                        f"[PAGOS] Monto invalido. "
+                        f"plan_id={suscripcion.plan.id} "
+                        f"empresa_id={suscripcion.empresa.id} "
+                        f"ciclo={suscripcion.ciclo} "
+                        f"precio_mensual={getattr(suscripcion.plan, 'precio_mensual', None)} "
+                        f"precio_anual={getattr(suscripcion.plan, 'precio_anual', None)} "
+                        f"precio_pagado_suscripcion={getattr(suscripcion, 'precio_pagado', None)} "
+                        f"monto_seleccionado={monto} "
+                        f"razon=precio_invalido_o_sin_fallback"
                     )
                     continue
 
@@ -178,8 +185,14 @@ def generar_pagos_automaticos():
             )
             continue
 
+    status = "success"
+    if pagos_creados == 0:
+        status = "failed"
+    elif errores > 0:
+        status = "partial_success"
+
     resultado = {
-        "status": "success",
+        "status": status,
         "pagos_creados": pagos_creados,
         "errores": errores,
         "total_procesadas": suscripciones.count(),
