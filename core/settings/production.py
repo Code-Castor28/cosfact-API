@@ -37,7 +37,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # para Nginx
 CORS_ALLOWED_ORIGINS = [
     "https://derejfact.com",
     "https://samboxderejfact.derejfact.com",
-    "https://samboxderejfact.derejsoft.com/",
+    "https://derejpanel.derejsoft.com",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
