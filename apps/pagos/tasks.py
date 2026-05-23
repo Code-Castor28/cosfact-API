@@ -105,9 +105,10 @@ def generar_pagos_automaticos():
             with transaction.atomic():
                 # Obtener monto del plan según el ciclo de la suscripción
                 monto = None
-                if suscripcion.ciclo == Suscripcion.CICLO_MENSUAL:
+                ciclo_suscripcion = (suscripcion.ciclo or '').strip().upper()
+                if ciclo_suscripcion in (Suscripcion.CICLO_MENSUAL, 'MONTHLY'):
                     monto = getattr(suscripcion.plan, 'precio_mensual', None)
-                elif suscripcion.ciclo == Suscripcion.CICLO_ANUAL:
+                elif ciclo_suscripcion in (Suscripcion.CICLO_ANUAL, 'ANNUAL'):
                     monto = getattr(suscripcion.plan, 'precio_anual', None)
 
                 # Si el plan no tiene precio para el ciclo, intentar usar el precio pagado (histórico)
@@ -121,13 +122,15 @@ def generar_pagos_automaticos():
                     logger.info(
                         f"[PAGOS] Plan={suscripcion.plan.nombre} "
                         f"plan_id={suscripcion.plan.id} "
-                        f"ciclo={suscripcion.ciclo} "
+                        f"ciclo_suscripcion={suscripcion.ciclo} "
+                        f"ciclo_suscripcion_normalizado={ciclo_suscripcion} "
+                        f"ciclo_plan={getattr(suscripcion.plan, 'ciclo_disponible', None)} "
                         f"precio_mensual={getattr(suscripcion.plan, 'precio_mensual', None)} "
                         f"precio_anual={getattr(suscripcion.plan, 'precio_anual', None)} "
-                        f"precio_pagado_suscripcion={getattr(suscripcion, 'precio_pagado', None)}"
+                        f"precio_pagado_suscripcion={getattr(suscripcion, 'precio_pagado', None)} "
+                        f"monto_seleccionado={monto} "
+                        f"tipo_monto={type(monto)}"
                     )
-                    logger.info(
-                        f"[PAGOS] Precio seleccionado para Plan {suscripcion.plan.id}: {monto}")
                 except Exception:
                     logger.debug(
                         f"[PAGOS] Error al loggear precios para Plan {getattr(suscripcion.plan, 'id', 'unknown')}")
