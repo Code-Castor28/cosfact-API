@@ -13,6 +13,7 @@ import logging
 
 from .models import Pago, HistorialPago
 from subscriptions.models import Suscripcion
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +103,30 @@ def generar_pagos_automaticos():
 
             # Crear Pago
             with transaction.atomic():
-                # Obtener monto del plan
-                monto = getattr(suscripcion.plan, 'precio', 0)
-                if not monto:
+                # Obtener monto del plan según el ciclo de la suscripción
+                monto = None
+                if suscripcion.ciclo == Suscripcion.CICLO_MENSUAL:
+                    monto = getattr(suscripcion.plan, 'precio_mensual', None)
+                elif suscripcion.ciclo == Suscripcion.CICLO_ANUAL:
+                    monto = getattr(suscripcion.plan, 'precio_anual', None)
+
+                # Si el plan no tiene precio para el ciclo, intentar usar el precio pagado (histórico)
+                if monto is None or (isinstance(monto, Decimal) and monto <= Decimal('0')):
+                    precio_pagado = getattr(suscripcion, 'precio_pagado', None)
+                    if precio_pagado and precio_pagado > Decimal('0'):
+                        monto = precio_pagado
+
+                # Validar monto final
+                try:
+                    if monto is None or Decimal(monto) <= Decimal('0'):
+                        logger.warning(
+                            f"[PAGOS] Plan {suscripcion.plan.id} no tiene precio. "
+                            f"Saltando {suscripcion.empresa.rnc}"
+                        )
+                        continue
+                except Exception:
                     logger.warning(
-                        f"[PAGOS] Plan {suscripcion.plan.id} no tiene precio. "
+                        f"[PAGOS] Precio inválido para Plan {suscripcion.plan.id}: {monto}. "
                         f"Saltando {suscripcion.empresa.rnc}"
                     )
                     continue
