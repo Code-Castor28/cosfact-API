@@ -17,26 +17,31 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.http import HttpRequest, HttpResponse
 from django.urls import path, include
-
+from core.views import health_check
 from .api_router import router
-
+import sentry_sdk
 # ─── Debug: Sentry error testing ──────────────────────────────────────────────
 
 
-def trigger_sentry_error(request):
+def trigger_sentry_error(request: HttpRequest) -> HttpResponse:
     """Trigger a test error to verify Sentry is working.
 
-    Usage: http://localhost:8000/sentry-debug/
-    """
-    division_by_zero = 1 / 0  # Intentional error for testing
+            Usage: http://localhost:8000/sentry-debug/
+            """
+    raise ZeroDivisionError("Intentional error for testing")
+    return HttpResponse(status=500)
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
-    # --- Debug ---
-    path('sentry-debug/', trigger_sentry_error) if settings.DEBUG else None,
+    # 2. AÑADE ESTA LÍNEA AL PRINCIPIO
+    path('api/v1/health/', health_check, name='health_check'),
+
+    # # --- Debug ---
+    # path('sentry-debug/', trigger_sentry_error) if settings.DEBUG else None,
 
     # --- API Router Central ---
     path('api/v1/', include(router.urls)),
@@ -59,3 +64,4 @@ if settings.DEBUG:
                           document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)
+    urlpatterns.append(path('sentry-debug/', trigger_sentry_error))
