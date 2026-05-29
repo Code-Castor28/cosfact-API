@@ -91,7 +91,8 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
         comprobante.estado = Comprobante.ESTADO_PROCESANDO
         comprobante.save(update_fields=["encf", "estado", "actualizado_at"])
 
-        _crear_evento(comprobante, estado_anterior, comprobante.estado, "Inicio de envio DGII")
+        _crear_evento(comprobante, estado_anterior,
+                      comprobante.estado, "Inicio de envio DGII")
 
     xml_bytes = build_ecf_xml(comprobante, list(comprobante.detalles.all()))
     cert_path = _cert_path_for_empresa(comprobante.empresa)
@@ -106,7 +107,8 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
         comprobante.xml_path = xml_path
         comprobante.xml_hash = xml_hash
         comprobante.xml_version = "1.0"
-        comprobante.save(update_fields=["xml_path", "xml_hash", "xml_version", "actualizado_at"])
+        comprobante.save(
+            update_fields=["xml_path", "xml_hash", "xml_version", "actualizado_at"])
 
     client = DgiiClient(comprobante.empresa)
     try:
@@ -132,7 +134,8 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
             "ultimo_error",
             "actualizado_at",
         ])
-        _crear_evento(comprobante, estado_anterior, comprobante.estado, "Envio DGII completado")
+        _crear_evento(comprobante, estado_anterior,
+                      comprobante.estado, "Envio DGII completado")
 
     return comprobante
 
@@ -144,8 +147,10 @@ def _marcar_contingencia(comprobante_id: str, error: str):
         comprobante.estado = Comprobante.ESTADO_CONTINGENCIA
         comprobante.intentos_envio = comprobante.intentos_envio + 1
         comprobante.ultimo_error = error[:2000]
-        comprobante.save(update_fields=["estado", "intentos_envio", "ultimo_error", "actualizado_at"])
-        _crear_evento(comprobante, estado_anterior, comprobante.estado, "Contingencia DGII")
+        comprobante.save(
+            update_fields=["estado", "intentos_envio", "ultimo_error", "actualizado_at"])
+        _crear_evento(comprobante, estado_anterior,
+                      comprobante.estado, "Contingencia DGII")
 
 
 def marcar_error_tecnico(comprobante_id: str, error: str):
@@ -155,12 +160,15 @@ def marcar_error_tecnico(comprobante_id: str, error: str):
         comprobante.estado = Comprobante.ESTADO_ERROR
         comprobante.intentos_envio = comprobante.intentos_envio + 1
         comprobante.ultimo_error = error[:2000]
-        comprobante.save(update_fields=["estado", "intentos_envio", "ultimo_error", "actualizado_at"])
-        _crear_evento(comprobante, estado_anterior, comprobante.estado, "Error tecnico DGII")
+        comprobante.save(
+            update_fields=["estado", "intentos_envio", "ultimo_error", "actualizado_at"])
+        _crear_evento(comprobante, estado_anterior,
+                      comprobante.estado, "Error tecnico DGII")
 
 
 def consultar_estado(comprobante_id: str) -> Comprobante:
-    comprobante = Comprobante.objects.select_related("empresa").get(pk=comprobante_id)
+    comprobante = Comprobante.objects.select_related(
+        "empresa").get(pk=comprobante_id)
     if not comprobante.track_id_dgii:
         return comprobante
 
@@ -175,7 +183,8 @@ def consultar_estado(comprobante_id: str) -> Comprobante:
         estado_anterior = comprobante.estado
         comprobante.estado = estado
         comprobante.save(update_fields=["estado", "actualizado_at"])
-        _crear_evento(comprobante, estado_anterior, comprobante.estado, "Consulta estado DGII")
+        _crear_evento(comprobante, estado_anterior,
+                      comprobante.estado, "Consulta estado DGII")
     return comprobante
 
 

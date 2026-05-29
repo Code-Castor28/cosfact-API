@@ -1,0 +1,45 @@
+1) Librería de firma
+- ¿Bindings o subprocess?: Usa los bindings oficiales de Python para xmlsec.
+- Archivo de referencia: apps/dgii/utils/xml_signer.py (import xmlsec y xmlsec.Key.from_file).
+- Versión instalada: xmlsec==1.3.15 (ver requirements.txt).
+
+2) Manejo de PKCS#12
+- ¿Cómo se carga?: Se carga con xmlsec vía `xmlsec.Key.from_file(..., xmlsec.KeyFormat.PKCS12, pin)` en apps/dgii/utils/xml_signer.py.
+- No se usa `crypto.load_pkcs12` ni APIs de pyOpenSSL en el código; tampoco se extrae la clave con `cryptography.hazmat.primitives.serialization.pkcs12`.
+- Versión de cryptography en el proyecto: cryptography==48.0.0 (requirements.txt), pero el flujo actual delega la lectura del .p12 a xmlsec.
+- PIN del .p12: se obtiene en tiempo de ejecución desde la variable de entorno `CERT_PIN_{empresa.id}` (dgii.services._get_cert_pin).
+
+3) Estructura de datos (Modelos Django)
+- Modelo vinculado: `Empresa` (apps/empresas/models.py).
+- Campos relacionados:
+  - `certificado_storage_key` (CharField): referencia al objeto en S3/MinIO, no guarda el binario.
+  - `certificado_hash` (CharField): SHA-256 del .p12.
+  - `certificado_vence_at` (DateField).
+- No existe un BinaryField para almacenar el .p12 en la base de datos: el archivo NO se persiste en la BD.
+
+4) Flujo en Celery y persistencia temporal
+- Tareas: `apps/dgii/tasks.py` (reintentar_envio_ecf) pasa solo `comprobante_id` al worker.
+- En el worker: `emitir_ecf` (apps/dgii/services.py) hace `Comprobante.objects.select_for_update().select_related('empresa').get(...)` y luego:
+  - construye el XML con `build_ecf_xml` (apps/dgii/utils/xml_builder.py),
+  - obtiene `cert_path = _cert_path_for_empresa(empresa)` (espera el .p12 en disco: `CERT_BASE_PATH/{empresa.id}.p12` o `/var/derejfact/certificados/{empresa.id}.p12`),
+  - obtiene `cert_pin` mediante `os.environ['CERT_PIN_{empresa.id}']` (dgii.services._get_cert_pin),
+  - y llama a `sign_xml(xml_bytes, cert_path, cert_pin)` (xmlsec carga el PKCS#12).
+- Conclusión sobre Celery payloads: el broker NO transporta el binario del certificado; sólo se envía el ID del comprobante. El .p12 debe estar disponible en el sistema de archivos del worker (o montado/descargado antes del uso).
+
+Otros puntos relevantes
+- Generación del XML base: se arma dinámicamente usando `lxml.etree` en `apps/dgii/utils/xml_builder.py` (no usa plantillas .xml físicas).
+- Dependencias clave en `requirements.txt`: lxml==5.4.0, xmlsec==1.3.15, cryptography==48.0.0, celery==5.6.3.
+
+Si quieres, te genero:
+- el diseño de la base de datos cifrada (esquema y campos), y
+- el script exacto en OpenSSL para la Etapa 1 (extracción/validación del .p12).
+
+Archivos consultados relevantes:
+- apps/dgii/utils/xml_signer.py
+- apps/dgii/utils/xml_builder.py
+- apps/dgii/services.py
+- apps/dgii/tasks.py
+- apps/empresas/models.py
+- apps/empresas/serializers.py
+- requirements.txt
+- .env
