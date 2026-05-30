@@ -45,3 +45,4 @@ postman/
 .postman/
 venv_linux/
 certificados_proyecto_respuestas.txt
+deploy.sh
