@@ -36,4 +36,4 @@ jobs:
             -o StrictHostKeyChecking=no \
             -p ${{ secrets.SSH_PORT }} \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            "cd /var/www/derejfact && bash deploy.sh"
+            "cd /var/www/derejfactAPI && bash deploy.sh"
