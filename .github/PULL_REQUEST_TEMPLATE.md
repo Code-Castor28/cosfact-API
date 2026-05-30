@@ -8,7 +8,7 @@ Cambios principales:
 - Validación robusta usando `Decimal` y manejo de valores <= 0.
 - Logs temporales de diagnóstico añadidos para plan/ciclo/precios.
 - fix de la github accion para mejorar el flujo de despliegues
--push nuevo 4
+-push nuevo 7
 
 
 Incluye tests unitarios que cubren generación para ciclos `MENSUAL` y `ANUAL`.
