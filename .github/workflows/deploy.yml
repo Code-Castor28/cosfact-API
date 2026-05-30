@@ -1,0 +1,24 @@
+name: Deploy DerejFact API
+
+on:
+  push:
+    branches:
+      - main  # Se dispara automáticamente al pushear a main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Master Checkout
+        uses: actions/checkout@v4
+
+      - name: Ejecutar despliegue vía SSH (Tailscale)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}        # IP de Tailscale de tu servidor
+          username: ${{ secrets.SSH_USER }}    # derejsoft
+          key: ${{ secrets.SSH_PRIVATE_KEY }}  # Tu llave SSH privada
+          port: ${{ secrets.SSH_PORT }}        # Por defecto 22
+          script: |
+            cd /var/www/derejfactAPI
+            bash deploy.sh
