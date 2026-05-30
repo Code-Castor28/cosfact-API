@@ -1,24 +1,33 @@
-name: Deploy DerejFact API
+name: Deploy a Producción
 
 on:
   push:
     branches:
-      - main  # Se dispara automáticamente al pushear a main
+      - main
+
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Master Checkout
-        uses: actions/checkout@v4
+    timeout-minutes: 30
 
-      - name: Ejecutar despliegue vía SSH (Tailscale)
-        uses: appleboy/ssh-action@v1.0.3
+    steps:
+
+      - name: Conectar a Tailscale
+        uses: tailscale/github-action@v2
         with:
-          host: ${{ secrets.SSH_HOST }}        # IP de Tailscale de tu servidor
-          username: ${{ secrets.SSH_USER }}    # derejsoft
-          key: ${{ secrets.SSH_PRIVATE_KEY }}  # Tu llave SSH privada
-          port: ${{ secrets.SSH_PORT }}        # Por defecto 22
-          script: |
-            cd /var/www/derejfactAPI
-            bash deploy.sh
+          oauth-client-id: ${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TAILSCALE_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: latest
+
+      - name: Ejecutar deploy
+        run: |
+          ssh \
+            -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            -p ${{ secrets.SSH_PORT }} \
+            "cd /var/www/derejfact && bash deploy.sh"
