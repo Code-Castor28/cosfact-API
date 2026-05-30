@@ -45,7 +45,6 @@ DATABASES = {
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-CSRF_USE_SESSIONS = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
@@ -58,8 +57,8 @@ else:
     COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN',
                               'samboxderejfact.derejsoft.com')
 
-SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
-CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
+SESSION_COOKIE_DOMAIN = None 
+CSRF_COOKIE_DOMAIN = None 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "https://derejfact.com",
