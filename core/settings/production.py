@@ -50,8 +50,15 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # para Nginx
-SESSION_COOKIE_DOMAIN = 'samboxderejfact.derejsoft.com'
-CSRF_COOKIE_DOMAIN = 'samboxderejfact.derejsoft.com'
+
+# Obtén el dominio principal desde ALLOWED_HOSTS (primer dominio)
+if ALLOWED_HOSTS and len(ALLOWED_HOSTS) > 0:
+    COOKIE_DOMAIN = ALLOWED_HOSTS[0]
+else:
+    COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN', 'samboxderejfact.derejsoft.com')
+
+SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
+CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "https://derejfact.com",

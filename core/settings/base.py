@@ -36,13 +36,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Leer el archivo .env
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# Así es como debe quedar en tu archivo .py
-CSRF_TRUSTED_ORIGINS = [
-    'https://samboxderejfact.derejsoft.com',
-    'http://samboxderejfact.derejsoft.com',
-]
-SESSION_COOKIE_DOMAIN = 'samboxderejfact.derejsoft.com'
-CSRF_COOKIE_DOMAIN = 'samboxderejfact.derejsoft.com'
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
