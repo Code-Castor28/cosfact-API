@@ -9,8 +9,8 @@ DEBUG = False
 # Lee el string del .env, lo divide por comas y limpia espacios de cada host
 allowed_hosts_raw = os.getenv('ALLOWED_HOSTS', '').split(',')
 ALLOWED_HOSTS = [
-    host.strip() 
-    for host in allowed_hosts_raw 
+    host.strip()
+    for host in allowed_hosts_raw
     if host.strip()
 ]
 ALLOWED_HOSTS.append('testserver')
@@ -21,8 +21,8 @@ ALLOWED_HOSTS.append('testserver')
 # Lee el string del .env, lo divide por comas y limpia espacios de cada origen
 csrf_origins_raw = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
 CSRF_TRUSTED_ORIGINS = [
-    origin.strip() 
-    for origin in csrf_origins_raw 
+    origin.strip()
+    for origin in csrf_origins_raw
     if origin.strip()
 ]
 
@@ -55,7 +55,8 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # para Nginx
 if ALLOWED_HOSTS and len(ALLOWED_HOSTS) > 0:
     COOKIE_DOMAIN = ALLOWED_HOSTS[0]
 else:
-    COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN', 'samboxderejfact.derejsoft.com')
+    COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN',
+                              'samboxderejfact.derejsoft.com')
 
 SESSION_COOKIE_DOMAIN = COOKIE_DOMAIN
 CSRF_COOKIE_DOMAIN = COOKIE_DOMAIN
