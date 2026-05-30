@@ -7,6 +7,7 @@ Cambios principales:
 - Usar `suscripcion.precio_pagado` como fallback si el plan no tiene precio para el ciclo.
 - Validación robusta usando `Decimal` y manejo de valores <= 0.
 - Logs temporales de diagnóstico añadidos para plan/ciclo/precios.
+- fix de la github accion para mejorar el flujo de despliegues
 
 Incluye tests unitarios que cubren generación para ciclos `MENSUAL` y `ANUAL`.
 
