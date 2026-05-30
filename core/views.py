@@ -21,3 +21,4 @@ def health_check(request):
         response_data["services"]["database"] = "down"
 
     return JsonResponse(response_data, status=status_code)
+#
