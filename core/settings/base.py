@@ -23,7 +23,7 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 env = environ.Env(
     DEBUG=(bool, False),
-    ENVIRONMENT=(str, 'development'),
+    ENVIRONMENT=(str, 'production'),
     APP_VERSION=(str, 'unknown'),
     SENTRY_DSN=(str, None),
     ALLOWED_HOSTS=(list, []),

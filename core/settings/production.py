@@ -1,13 +1,30 @@
 import os
-
 from .base import *
 
 DEBUG = False
 
-# ALLOWED_HOSTS = ['api.derejfact.com', 'TU_IP_DE_SERVIDOR']
-allowed_hosts_raw = env.list('ALLOWED_HOSTS', default=[])  # type: ignore
-ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_raw if host.strip()]
-ALLOWED_HOSTS += ['testserver']
+# ------------------------------------------------------------------------------
+# CONFIGURACIÓN DE HOSTS (ALLOWED_HOSTS)
+# ------------------------------------------------------------------------------
+# Lee el string del .env, lo divide por comas y limpia espacios de cada host
+allowed_hosts_raw = os.getenv('ALLOWED_HOSTS', '').split(',')
+ALLOWED_HOSTS = [
+    host.strip() 
+    for host in allowed_hosts_raw 
+    if host.strip()
+]
+ALLOWED_HOSTS.append('testserver')
+
+# ------------------------------------------------------------------------------
+# CONFIGURACIÓN DE ORÍGENES DE CONFIANZA CSRF
+# ------------------------------------------------------------------------------
+# Lee el string del .env, lo divide por comas y limpia espacios de cada origen
+csrf_origins_raw = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() 
+    for origin in csrf_origins_raw 
+    if origin.strip()
+]
 
 DATABASES = {
     'default': {
