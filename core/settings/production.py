@@ -45,20 +45,18 @@ DATABASES = {
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+CSRF_USE_SESSIONS = False
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # para Nginx
 
-# Obtén el dominio principal desde ALLOWED_HOSTS (primer dominio)
-if ALLOWED_HOSTS and len(ALLOWED_HOSTS) > 0:
-    COOKIE_DOMAIN = ALLOWED_HOSTS[0]
-else:
-    COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN',
-                              'samboxderejfact.derejsoft.com')
-
-SESSION_COOKIE_DOMAIN = None 
-CSRF_COOKIE_DOMAIN = None 
+# Configurar dominios de cookies de forma flexible
+# None permite que funcione con cualquier subdominio
+SESSION_COOKIE_DOMAIN = None
+CSRF_COOKIE_DOMAIN = None
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False  # CSRF necesita ser accesible a JavaScript 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "https://derejfact.com",
