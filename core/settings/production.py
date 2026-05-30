@@ -1,7 +1,7 @@
 import os
 from .base import *
 
-DEBUG = False
+DEBUG = env('DEBUG')
 
 # ------------------------------------------------------------------------------
 # CONFIGURACIÓN DE HOSTS (ALLOWED_HOSTS)
