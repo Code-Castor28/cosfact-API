@@ -57,7 +57,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')  # para Nginx
 SESSION_COOKIE_DOMAIN = None
 CSRF_COOKIE_DOMAIN = None
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True  # Permitir almacenamiento en sesión 
+CSRF_COOKIE_HTTPONLY = True  # Permitir almacenamiento en sesión
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 CORS_ALLOWED_ORIGINS = [
     "https://derejfact.com",
