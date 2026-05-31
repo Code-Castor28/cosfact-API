@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.core.exceptions import ValidationError as DjangoValidationError
 from .models import Plan, Suscripcion, PaqueteComprobantes
 
 
@@ -21,6 +22,24 @@ class PlanSerializer(serializers.ModelSerializer):
             "actualizado_at",
         ]
         read_only_fields = ["id", "creado_at", "actualizado_at"]
+
+    def validate(self, attrs):
+        # Instanciar el modelo en memoria para validar
+        instance = Plan(**attrs)
+        if self.instance:
+            # Si es una actualización, aplicamos los cambios a la instancia existente
+            for attr, value in attrs.items():
+                setattr(instance, attr, value)
+        
+        try:
+            instance.clean()
+        except DjangoValidationError as e:
+            # Convertir el error de Django al formato de DRF para que el frontend lo consuma
+            if hasattr(e, 'message_dict'):
+                raise serializers.ValidationError(e.message_dict)
+            raise serializers.ValidationError(e.messages)
+            
+        return attrs
 
 
 class SuscripcionSerializer(serializers.ModelSerializer):
@@ -63,4 +82,22 @@ class PaqueteComprobantesSerializer(serializers.ModelSerializer):
             "fecha_vencimiento",
             "creado_at",
         ]
-        read_only_fields = ["id", "fecha_compra", "creado_at"]
+        # Agregados comprobantes_usados y estado por seguridad (solo el sistema debe cambiarlos)
+        read_only_fields = ["id", "fecha_compra", "creado_at", "comprobantes_usados", "estado"]
+
+    def validate(self, attrs):
+        # Instanciar el modelo en memoria para validar
+        instance = PaqueteComprobantes(**attrs)
+        if self.instance:
+            for attr, value in attrs.items():
+                setattr(instance, attr, value)
+        
+        try:
+            instance.clean()
+        except DjangoValidationError as e:
+            # Convertir el error de Django al formato de DRF
+            if hasattr(e, 'message_dict'):
+                raise serializers.ValidationError(e.message_dict)
+            raise serializers.ValidationError(e.messages)
+            
+        return attrs
