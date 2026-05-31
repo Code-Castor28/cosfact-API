@@ -1,39 +1,49 @@
 import uuid
+from typing import Any, ClassVar
 from django.db import models
 from django.conf import settings
+from django.core.exceptions import ValidationError
 
 
 class Pago(models.Model):
-    METODO_EFECTIVO = "EFECTIVO"
-    METODO_TRANSFERENCIA = "TRANSFERENCIA"
-    METODO_DEPOSITO = "DEPOSITO"
-    METODO_CHEQUE = "CHEQUE"
-    METODO_OTRO = "OTRO"
+    METODO_EFECTIVO: ClassVar[str] = "EFECTIVO"
+    METODO_TRANSFERENCIA: ClassVar[str] = "TRANSFERENCIA"
+    METODO_DEPOSITO: ClassVar[str] = "DEPOSITO"
+    METODO_CHEQUE: ClassVar[str] = "CHEQUE"
+    METODO_OTRO: ClassVar[str] = "OTRO"
 
-    METODOS_PAGO = [
-        (METODO_EFECTIVO, "Efectivo"),
-        (METODO_TRANSFERENCIA, "Transferencia"),
-        (METODO_DEPOSITO, "Depósito"),
-        (METODO_CHEQUE, "Cheque"),
-        (METODO_OTRO, "Otro"),
+    METODOS_PAGO: ClassVar[list[tuple[str, str]]] = [
+        ("EFECTIVO", "Efectivo"),
+        ("TRANSFERENCIA", "Transferencia"),
+        ("DEPOSITO", "Depósito"),
+        ("CHEQUE", "Cheque"),
+        ("OTRO", "Otro"),
     ]
 
-    ESTADO_PENDIENTE = "PENDIENTE"
-    ESTADO_CONFIRMADO = "CONFIRMADO"
-    ESTADO_RECHAZADO = "RECHAZADO"
+    ESTADO_PENDIENTE: ClassVar[str] = "PENDIENTE"
+    ESTADO_CONFIRMADO: ClassVar[str] = "CONFIRMADO"
+    ESTADO_RECHAZADO: ClassVar[str] = "RECHAZADO"
 
-    ESTADOS = [
-        (ESTADO_PENDIENTE, "Pendiente"),
-        (ESTADO_CONFIRMADO, "Confirmado"),
-        (ESTADO_RECHAZADO, "Rechazado"),
+    ESTADOS: ClassVar[list[tuple[str, str]]] = [
+        ("PENDIENTE", "Pendiente"),
+        ("CONFIRMADO", "Confirmado"),
+        ("RECHAZADO", "Rechazado"),
     ]
 
-    MONEDA_DOP = "DOP"
-    MONEDA_USD = "USD"
+    MONEDA_DOP: ClassVar[str] = "DOP"
+    MONEDA_USD: ClassVar[str] = "USD"
 
-    MONEDAS = [
-        (MONEDA_DOP, "Peso Dominicano"),
-        (MONEDA_USD, "Dólar Estadounidense"),
+    MONEDAS: ClassVar[list[tuple[str, str]]] = [
+        ("DOP", "Peso Dominicano"),
+        ("USD", "Dólar Estadounidense"),
+    ]
+
+    TIPO_RENOVACION: ClassVar[str] = "RENOVACION"
+    TIPO_ADICIONAL: ClassVar[str] = "ADICIONAL"
+
+    TIPOS_PAGO: ClassVar[list[tuple[str, str]]] = [
+        ("RENOVACION", "Renovación de Suscripción"),
+        ("ADICIONAL", "Paquete Adicional"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -57,12 +67,11 @@ class Pago(models.Model):
     monto = models.DecimalField(max_digits=10, decimal_places=2)
     moneda = models.CharField(
         max_length=10, choices=MONEDAS, default=MONEDA_DOP)
-    metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO)
+    tipo_pago = models.CharField(
+        max_length=20, choices=TIPOS_PAGO, default=TIPO_RENOVACION)
+    metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO, blank=True)
     referencia = models.CharField(max_length=100, blank=True)
-    fecha_pago = models.DateTimeField()
-    fecha_corte = models.PositiveSmallIntegerField(
-        help_text="Día fijo del mes (1-28)"
-    )
+    fecha_pago = models.DateTimeField(auto_now_add=True)
     observaciones = models.TextField(blank=True)
 
     estado = models.CharField(
@@ -82,37 +91,39 @@ class Pago(models.Model):
     creado_at = models.DateTimeField(auto_now_add=True)
     actualizado_at = models.DateTimeField(auto_now=True)
 
-    def clean(self):
+    def clean(self) -> None:
         """
         Validaciones personalizadas:
-        1. Si metodo_pago != EFECTIVO, referencia es requerida
-        2. No puede haber otro pago PENDIENTE para el mismo cliente (no adelantos)
+        1. Si metodo_pago != EFECTIVO, referencia es requerida.
+        2. No puede haber otro pago PENDIENTE de RENOVACION para el mismo cliente.
         """
-        from django.core.exceptions import ValidationError
-
         # Validación 1: Referencia obligatoria para métodos no-EFECTIVO
-        if (self.metodo_pago and
-            self.metodo_pago != self.METODO_EFECTIVO and
-                not self.referencia.strip()):
+        referencia: str = self.referencia or ""
+        if (
+            self.metodo_pago
+            and self.metodo_pago != self.METODO_EFECTIVO
+            and not referencia.strip()
+        ):
             raise ValidationError({
                 'referencia': f'Requerida para pagos por {self.metodo_pago}'
             })
 
-        # Validación 2: No adelantos (no múltiples PENDIENTES simultáneamente)
-        # Al crear (sin pk)
-        if self.estado == self.ESTADO_PENDIENTE and not self.pk:
+        # Validación 2: No adelantos (sin múltiples PENDIENTES para renovaciones)
+        es_nuevo: bool = self.pk is None
+        if self.estado == self.ESTADO_PENDIENTE and self.tipo_pago == self.TIPO_RENOVACION and es_nuevo:
             existe_pendiente = Pago.objects.filter(
                 empresa=self.empresa,
                 estado=self.ESTADO_PENDIENTE,
-            ).exclude(pk=self.pk).exists()
+                tipo_pago=self.TIPO_RENOVACION,
+            ).exists()
 
             if existe_pendiente:
                 raise ValidationError({
-                    'empresa': 'Ya existe un pago PENDIENTE para esta empresa. '
+                    'empresa': 'Ya existe una renovación PENDIENTE para esta empresa. '
                                'No se permiten adelantos simultáneos.'
                 })
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """Llamar clean() antes de guardar."""
         self.clean()
         super().save(*args, **kwargs)
@@ -127,8 +138,9 @@ class Pago(models.Model):
             models.Index(fields=["estado", "creado_at"]),
         ]
 
-    def __str__(self):
-        return f"{self.empresa.rnc} - {self.monto} {self.moneda} [{self.estado}]"
+    def __str__(self) -> str:
+        empresa_rnc: str = self.empresa.rnc  # type: ignore[attr-defined]
+        return f"{empresa_rnc} - {self.monto} {self.moneda} [{self.estado}]"
 
 
 class HistorialPago(models.Model):
@@ -176,7 +188,7 @@ class HistorialPago(models.Model):
             models.Index(fields=["empresa", "periodo_ano", "periodo_mes"]),
             models.Index(fields=["suscripcion"]),
         ]
-        unique_together = [["empresa", "periodo_mes", "periodo_ano"]]
 
-    def __str__(self):
-        return f"{self.empresa.rnc} - {self.periodo_mes}/{self.periodo_ano}"
+    def __str__(self) -> str:
+        empresa_rnc: str = self.empresa.rnc  # type: ignore[attr-defined]
+        return f"{empresa_rnc} - {self.periodo_mes}/{self.periodo_ano}"
