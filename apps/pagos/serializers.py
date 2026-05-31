@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from core.serializers import CleanModelSerializer
 from .models import Pago, HistorialPago
 
 
-class PagoSerializer(serializers.ModelSerializer):
+class PagoSerializer(CleanModelSerializer):
     """
     Serializer para listar y ver detalles de pagos PENDIENTES.
     Todos los campos importantes (monto, plan, empresa) son READ-ONLY
@@ -53,7 +54,7 @@ class PagoSerializer(serializers.ModelSerializer):
         ]
 
 
-class PagoUpdateSerializer(serializers.ModelSerializer):
+class PagoUpdateSerializer(CleanModelSerializer):
     """
     Serializer SOLO para actualizar método de pago y confirmar.
     Solo permite editar:
@@ -98,7 +99,7 @@ class PagoUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class PagoDetailSerializer(serializers.ModelSerializer):
+class PagoDetailSerializer(CleanModelSerializer):
     """
     Serializer detallado para ver un pago específico.
     Incluye nombres relacionados (empresa, plan, usuario) como read-only.
@@ -156,7 +157,7 @@ class PagoDetailSerializer(serializers.ModelSerializer):
         ]
 
 
-class HistorialPagoSerializer(serializers.ModelSerializer):
+class HistorialPagoSerializer(CleanModelSerializer):
     """
     Serializer para el historial de pagos confirmados.
     Todos los campos son read-only (es historial).

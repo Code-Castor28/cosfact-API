@@ -1,14 +1,15 @@
 # apps/users/serializers.py
 from rest_framework import serializers
+from core.serializers import CleanModelSerializer
 from .models import Usuario
 from empresas.models import Empresa
 
-class EmpresaMiniSerializer(serializers.ModelSerializer):
+class EmpresaMiniSerializer(CleanModelSerializer):
     class Meta:
         model = Empresa
         fields = ['id', 'razon_social', 'rnc']
 
-class UsuarioSerializer(serializers.ModelSerializer):
+class UsuarioSerializer(CleanModelSerializer):
     empresa_detalle = EmpresaMiniSerializer(source='empresa', read_only=True)
     password = serializers.CharField(write_only=True, required=False)
 

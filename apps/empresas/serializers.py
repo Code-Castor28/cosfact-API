@@ -8,6 +8,7 @@ Hay 3 niveles de acceso:
   - Resúmenes de Suscripción y Paquetes para los endpoints /suscripcion/ y /comprobantes/
 """
 from rest_framework import serializers
+from core.serializers import CleanModelSerializer
 from .models import Empresa, TokenDGII
 from subscriptions.models import Suscripcion, PaqueteComprobantes
 
@@ -16,7 +17,7 @@ from subscriptions.models import Suscripcion, PaqueteComprobantes
 # Serializers de Empresa
 # ─────────────────────────────────────────────
 
-class EmpresaListSerializer(serializers.ModelSerializer):
+class EmpresaListSerializer(CleanModelSerializer):
     """
     Listado general (solo Superadmin).
     Campos suficientes para una tabla/grid sin sobrecargar el payload.
@@ -30,7 +31,7 @@ class EmpresaListSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class EmpresaDetailSerializer(serializers.ModelSerializer):
+class EmpresaDetailSerializer(CleanModelSerializer):
     """
     Detalle completo (solo Superadmin).
     Incluye campos de auditoría y certificado (pero NUNCA el storage_key completo en texto plano).
@@ -50,7 +51,7 @@ class EmpresaDetailSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class EmpresaWriteSerializer(serializers.ModelSerializer):
+class EmpresaWriteSerializer(CleanModelSerializer):
     """
     Creación y edición (solo Superadmin).
     Excluye campos de certificado (proceso separado) y auditoría.
@@ -70,7 +71,7 @@ class EmpresaWriteSerializer(serializers.ModelSerializer):
         return value
 
 
-class EmpresaAdminSerializer(serializers.ModelSerializer):
+class EmpresaAdminSerializer(CleanModelSerializer):
     """
     Vista reducida para Admin Empresa (solo lectura).
     NO expone: deleted_at, certificado_hash, certificado_storage_key, actualizado_at.
@@ -99,7 +100,7 @@ class PlanResumenSerializer(serializers.Serializer):
     ciclo_disponible = serializers.CharField()
 
 
-class SuscripcionResumenSerializer(serializers.ModelSerializer):
+class SuscripcionResumenSerializer(CleanModelSerializer):
     """
     Resumen de la suscripción activa de una empresa.
     Disponible para Superadmin y Admin de la empresa.
@@ -122,7 +123,7 @@ class SuscripcionResumenSerializer(serializers.ModelSerializer):
 # Serializers de Paquetes (endpoint /comprobantes/)
 # ─────────────────────────────────────────────
 
-class PaqueteResumenSerializer(serializers.ModelSerializer):
+class PaqueteResumenSerializer(CleanModelSerializer):
     """
     Resumen de paquetes de comprobantes de una empresa.
     Disponible para Superadmin y Admin de la empresa.

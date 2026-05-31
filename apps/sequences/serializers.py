@@ -1,8 +1,9 @@
 from rest_framework import serializers
+from core.serializers import CleanModelSerializer
 from .models import Secuencial
 
 
-class SecuencialSerializer(serializers.ModelSerializer):
+class SecuencialSerializer(CleanModelSerializer):
     proximo_encf = serializers.SerializerMethodField()
     porcentaje_uso = serializers.FloatField(read_only=True)
     casi_agotado = serializers.BooleanField(read_only=True)

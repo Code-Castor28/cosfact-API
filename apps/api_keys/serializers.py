@@ -1,16 +1,17 @@
 from rest_framework import serializers
+from core.serializers import CleanModelSerializer
 from django.core.exceptions import ValidationError as DjangoValidationError
 from empresas.models import Empresa
 from .models import ApiKey
 
 
-class EmpresaMiniSerializer(serializers.ModelSerializer):
+class EmpresaMiniSerializer(CleanModelSerializer):
     class Meta:
         model = Empresa
         fields = ["id", "razon_social", "rnc"]
 
 
-class ApiKeyReadSerializer(serializers.ModelSerializer):
+class ApiKeyReadSerializer(CleanModelSerializer):
     empresa_detalle = EmpresaMiniSerializer(source="empresa", read_only=True)
 
     class Meta:
@@ -48,7 +49,7 @@ class ApiKeyReadSerializer(serializers.ModelSerializer):
         ]
 
 
-class ApiKeyWriteSerializer(serializers.ModelSerializer):
+class ApiKeyWriteSerializer(CleanModelSerializer):
     class Meta:
         model = ApiKey
         fields = [
