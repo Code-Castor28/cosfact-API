@@ -94,15 +94,16 @@ class Secuencial(models.Model):
                 name="uq_secuencial_empresa_tipoecf",
             ),
             models.CheckConstraint(
-                check=models.Q(minimo_asignado__gte=1),
+                condition=models.Q(minimo_asignado__gte=1),
                 name="ck_secuencial_minimo_asignado",
             ),
             models.CheckConstraint(
-                check=models.Q(maximo_asignado__gt=models.F("minimo_asignado")),
+                condition=models.Q(
+                    maximo_asignado__gt=models.F("minimo_asignado")),
                 name="ck_secuencial_maximo_mayor_minimo",
             ),
             models.CheckConstraint(
-                check=models.Q(ultimo_numero__gte=0),
+                condition=models.Q(ultimo_numero__gte=0),
                 name="ck_secuencial_ultimo_numero",
             ),
         ]
