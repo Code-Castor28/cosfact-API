@@ -109,7 +109,7 @@ class Pago(models.Model):
             })
 
         # Validación 2: No adelantos (sin múltiples PENDIENTES para renovaciones)
-        es_nuevo: bool = self.pk is None
+        es_nuevo: bool = self._state.adding
         if self.estado == self.ESTADO_PENDIENTE and self.tipo_pago == self.TIPO_RENOVACION and es_nuevo:
             existe_pendiente = Pago.objects.filter(
                 empresa=self.empresa,

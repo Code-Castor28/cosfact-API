@@ -43,13 +43,12 @@ class PagoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        estado = self.request.query_params.get('estado')
-
-        if not estado:
-            queryset = queryset.filter(estado=Pago.ESTADO_PENDIENTE)
-        else:
-            queryset = queryset.filter(estado=estado)
-
+        if self.action == 'list':
+            estado = self.request.query_params.get('estado')
+            if not estado:
+                queryset = queryset.filter(estado=Pago.ESTADO_PENDIENTE)
+            else:
+                queryset = queryset.filter(estado=estado)
         return queryset
 
     def create(self, request, *args, **kwargs):

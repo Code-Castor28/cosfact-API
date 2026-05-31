@@ -5,7 +5,7 @@ from .models import Pago, HistorialPago
 
 class PagoSerializer(CleanModelSerializer):
     empresa_nombre = serializers.CharField(
-        source="empresa.nombre", read_only=True)
+        source="empresa.razon_social", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
 
     class Meta:
@@ -48,7 +48,7 @@ class PagoSerializer(CleanModelSerializer):
 
 
 class PagoCreateSerializer(CleanModelSerializer):
-    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+    empresa_nombre = serializers.CharField(source="empresa.razon_social", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
 
     class Meta:
@@ -129,11 +129,11 @@ class PagoDetailSerializer(CleanModelSerializer):
     Incluye nombres relacionados (empresa, plan, usuario) como read-only.
     """
     empresa_nombre = serializers.CharField(
-        source="empresa.nombre", read_only=True)
+        source="empresa.razon_social", read_only=True)
     empresa_rnc = serializers.CharField(source="empresa.rnc", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
     confirmado_por_username = serializers.CharField(
-        source="confirmado_por.username", read_only=True
+        source="confirmado_por.email", read_only=True
     )
 
     class Meta:
@@ -185,7 +185,7 @@ class HistorialPagoSerializer(CleanModelSerializer):
     Todos los campos son read-only (es historial).
     """
     empresa_nombre = serializers.CharField(
-        source="empresa.nombre", read_only=True)
+        source="empresa.razon_social", read_only=True)
     empresa_rnc = serializers.CharField(source="empresa.rnc", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
 

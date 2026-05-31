@@ -31,7 +31,7 @@ def generar_pdf_a4(pago):
     c.drawString(2 * cm, y, "Empresa")
     y -= 18
     c.setFont("Helvetica", 10)
-    c.drawString(2 * cm, y, pago.empresa.nombre)
+    c.drawString(2 * cm, y, pago.empresa.razon_social)
     y -= 14
     c.drawString(2 * cm, y, f"RNC: {pago.empresa.rnc}")
     y -= 25
@@ -51,7 +51,7 @@ def generar_pdf_a4(pago):
         ("Metodo de pago", dict(Pago.METODOS_PAGO).get(pago.metodo_pago, pago.metodo_pago)),
         ("Referencia", pago.referencia or "\u2014"),
         ("Estado", "CONFIRMADO"),
-        ("Confirmado por", pago.confirmado_por.username if pago.confirmado_por else "\u2014"),
+        ("Confirmado por", pago.confirmado_por.email if pago.confirmado_por else "\u2014"),
         ("Fecha de pago", pago.fecha_pago.strftime("%d/%m/%Y %H:%M") if pago.fecha_pago else "\u2014"),
         ("Fecha de confirmacion",
          pago.fecha_confirmacion.strftime("%d/%m/%Y %H:%M") if pago.fecha_confirmacion else "\u2014"),
@@ -68,7 +68,7 @@ def generar_pdf_a4(pago):
     y -= 20
 
     c.setFont("Helvetica", 7)
-    c.setFillGray(0.5, 0.5, 0.5)
+    c.setFillGray(0.5)
     c.drawString(2 * cm, y, f"ID interno: {pago.id}")
     y -= 12
     c.drawString(2 * cm, y, "Este documento es un comprobante de pago interno.")
@@ -97,7 +97,7 @@ def generar_pdf_80mm(pago):
     c.line(x, y, x + ancho_texto, y)
     y -= 14
 
-    c.drawString(x, y, f"Empresa: {pago.empresa.nombre}")
+    c.drawString(x, y, f"Empresa: {pago.empresa.razon_social}")
     y -= 12
     c.drawString(x, y, f"RNC: {pago.empresa.rnc}")
     y -= 16
@@ -125,7 +125,7 @@ def generar_pdf_80mm(pago):
         y -= 14
         c.drawString(
             x, y,
-            f"Confirmado: {pago.confirmado_por.username if pago.confirmado_por else '--'}"
+            f"Confirmado: {pago.confirmado_por.email if pago.confirmado_por else '--'}"
         )
         y -= 12
         c.drawString(
