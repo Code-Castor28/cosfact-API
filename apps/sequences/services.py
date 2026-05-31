@@ -11,7 +11,8 @@ DISEÑO DE SEGURIDAD:
   para modificar ultimo_numero.
 """
 from django.db import transaction
-from .models import Secuencial, TIPOS_ECF
+from django.utils import timezone
+from .models import Secuencial, MovimientoSecuencial, TIPOS_ECF
 
 
 class SecuencialAgotadoError(Exception):
@@ -26,7 +27,7 @@ class TipoECFNoExisteError(Exception):
     """No hay secuencial configurado para este tipo en esta empresa."""
 
 
-def obtener_proximo_encf(empresa, tipo_ecf: int) -> str:
+def obtener_proximo_encf(empresa, tipo_ecf: int, comprobante=None, usuario=None) -> str:
     """
     Obtiene y reserva el próximo número e-NCF para la empresa y tipo dado.
 
@@ -37,6 +38,8 @@ def obtener_proximo_encf(empresa, tipo_ecf: int) -> str:
     Args:
         empresa: instancia de Empresa
         tipo_ecf: int, tipo de comprobante (31, 32, 41, etc.)
+        comprobante: opcional, instancia de Comprobante para auditoría
+        usuario: opcional, instancia de Usuario para auditoría
 
     Returns:
         str: el e-NCF formateado, ej: "E310000001"
@@ -74,7 +77,8 @@ def obtener_proximo_encf(empresa, tipo_ecf: int) -> str:
             # Bloquear automáticamente para que el admin lo amplíe
             secuencial.bloqueado = True
             secuencial.motivo_bloqueo = "Rango agotado automáticamente."
-            secuencial.save(update_fields=["bloqueado", "motivo_bloqueo"])
+            secuencial.fecha_bloqueo = timezone.now()
+            secuencial.save(update_fields=["bloqueado", "motivo_bloqueo", "fecha_bloqueo"])
             raise SecuencialAgotadoError(
                 f"El rango de secuenciales para tipo {tipo_ecf} se ha agotado. "
                 f"Máximo: {secuencial.maximo_asignado}."
@@ -83,4 +87,16 @@ def obtener_proximo_encf(empresa, tipo_ecf: int) -> str:
         secuencial.ultimo_numero = proximo
         secuencial.save(update_fields=["ultimo_numero", "actualizado_at"])
 
-        return secuencial._formatear_encf(proximo)
+        encf = secuencial._formatear_encf(proximo)
+
+        MovimientoSecuencial.objects.create(
+            secuencial=secuencial,
+            empresa=empresa,
+            tipo_ecf=tipo_ecf,
+            numero_asignado=proximo,
+            encf_generado=encf,
+            comprobante=comprobante,
+            usuario=usuario,
+        )
+
+        return encf

@@ -22,19 +22,18 @@ from django.core.exceptions import ValidationError
 
 
 # Tipos e-CF válidos según DGII (Ley 32-23)
+# Fuente: https://dgii.gov.do/cicloContribuyente/facturacion/comprobantesFiscalesElectronicosE-CF/Paginas/TipoyEstructurae-CF.aspx
 TIPOS_ECF = {
     31: "Factura de Crédito Fiscal",
     32: "Factura de Consumo",
-    # Nota: en algunos docs DGII es 34 — verificar versión vigente
     33: "Nota de Débito",
-    34: "Nota de Débito",
-    41: "Nota de Crédito",
-    43: "Comprobante de Compras",
-    44: "Gastos Menores",
-    45: "Regímenes Especiales",
-    46: "Gubernamental",
-    47: "Exportación",
-    48: "Pagos al Exterior",
+    34: "Nota de Crédito",
+    41: "Comprobante de Compras",
+    43: "Gastos Menores",
+    44: "Regímenes Especiales",
+    45: "Gubernamental",
+    46: "Exportación",
+    47: "Pagos al Exterior",
 }
 
 TIPO_ECF_CHOICES = [(k, v) for k, v in TIPOS_ECF.items()]
@@ -70,6 +69,18 @@ class Secuencial(models.Model):
     )
     motivo_bloqueo = models.CharField(max_length=255, blank=True)
 
+    fecha_bloqueo = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Momento en que se bloqueó el secuencial.",
+    )
+    usuario_bloqueo = models.ForeignKey(
+        "users.Usuario",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="secuenciales_bloqueados",
+        help_text="Usuario que realizó el bloqueo.",
+    )
+
     creado_at = models.DateTimeField(auto_now_add=True)
     actualizado_at = models.DateTimeField(auto_now=True)
 
@@ -77,10 +88,23 @@ class Secuencial(models.Model):
         db_table = "secuenciales"
         verbose_name = "Secuencial e-NCF"
         verbose_name_plural = "Secuenciales e-NCF"
-        # Una empresa tiene exactamente un secuencial por tipo
-        unique_together = [("empresa", "tipo_ecf")]
-        indexes = [
-            models.Index(fields=["empresa", "tipo_ecf"]),
+        constraints = [
+            models.UniqueConstraint(
+                fields=["empresa", "tipo_ecf"],
+                name="uq_secuencial_empresa_tipoecf",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(minimo_asignado__gte=1),
+                name="ck_secuencial_minimo_asignado",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(maximo_asignado__gt=models.F("minimo_asignado")),
+                name="ck_secuencial_maximo_mayor_minimo",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(ultimo_numero__gte=0),
+                name="ck_secuencial_ultimo_numero",
+            ),
         ]
 
     def __str__(self):
@@ -106,7 +130,10 @@ class Secuencial(models.Model):
         rango = self.maximo_asignado - self.minimo_asignado + 1
         if rango <= 0:
             return 100.0
-        return (self.ultimo_numero / rango) * 100
+        utilizados = self.ultimo_numero - self.minimo_asignado + 1
+        if utilizados < 0:
+            return 0.0
+        return (utilizados / rango) * 100
 
     @property
     def casi_agotado(self) -> bool:
@@ -125,3 +152,66 @@ class Secuencial(models.Model):
         if self.maximo_asignado <= self.minimo_asignado:
             raise ValidationError(
                 {"maximo_asignado": "El máximo debe ser mayor al mínimo."})
+        if self.ultimo_numero > self.maximo_asignado:
+            raise ValidationError(
+                {"ultimo_numero": "El último número no puede exceder el máximo asignado."})
+
+
+class MovimientoSecuencial(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    secuencial = models.ForeignKey(
+        Secuencial,
+        on_delete=models.PROTECT,
+        related_name="movimientos",
+    )
+
+    empresa = models.ForeignKey(
+        "empresas.Empresa",
+        on_delete=models.PROTECT,
+        related_name="movimientos_secuenciales",
+    )
+
+    tipo_ecf = models.PositiveSmallIntegerField(
+        choices=TIPO_ECF_CHOICES,
+    )
+
+    numero_asignado = models.PositiveIntegerField(
+        help_text="Número secuencial asignado.",
+    )
+
+    encf_generado = models.CharField(
+        max_length=13,
+        help_text="e-NCF completo generado (E + tipo + número).",
+    )
+
+    comprobante = models.ForeignKey(
+        "comprobantes.Comprobante",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="movimientos_secuenciales",
+        help_text="Comprobante al que se asignó este e-NCF.",
+    )
+
+    usuario = models.ForeignKey(
+        "users.Usuario",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name="movimientos_secuenciales",
+        help_text="Usuario que realizó la operación.",
+    )
+
+    creado_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "movimientos_secuenciales"
+        verbose_name = "Movimiento de Secuencial"
+        verbose_name_plural = "Movimientos de Secuenciales"
+        ordering = ["-creado_at"]
+        indexes = [
+            models.Index(fields=["empresa", "tipo_ecf", "creado_at"]),
+            models.Index(fields=["comprobante"]),
+        ]
+
+    def __str__(self):
+        return f"{self.encf_generado} — {self.creado_at}"

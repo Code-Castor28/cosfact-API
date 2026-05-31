@@ -19,14 +19,18 @@ class SecuencialSerializer(CleanModelSerializer):
             "maximo_asignado",
             "bloqueado",
             "motivo_bloqueo",
+            "fecha_bloqueo",
+            "usuario_bloqueo",
             "proximo_encf",
             "porcentaje_uso",
             "casi_agotado",
             "creado_at",
             "actualizado_at",
         ]
-        read_only_fields = ["id", "creado_at",
-                            "actualizado_at", "proximo_encf"]
+        read_only_fields = [
+            "id", "creado_at", "actualizado_at", "proximo_encf",
+            "fecha_bloqueo", "usuario_bloqueo",
+        ]
 
     def get_proximo_encf(self, obj):
         return obj.proximo_encf()

@@ -86,6 +86,7 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
             comprobante.encf = obtener_proximo_encf(
                 comprobante.empresa,
                 comprobante.tipo_ecf,
+                comprobante=comprobante,
             )
 
         comprobante.estado = Comprobante.ESTADO_PROCESANDO

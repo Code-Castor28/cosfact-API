@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -24,8 +25,9 @@ class SecuencialViewSet(viewsets.ModelViewSet):
         if getattr(user, "rol", None) == Usuario.ROL_SUPERADMIN:
             return qs
 
-        if getattr(user, "rol", None) == Usuario.ROL_ADMIN_EMPRESA:
-            return qs.filter(empresa=user.empresa)
+        user_empresa_id = getattr(user, "empresa_id", None)
+        if user_empresa_id:
+            return qs.filter(empresa_id=user_empresa_id)
 
         if hasattr(user, "rnc"):
             return qs.filter(empresa=user)
@@ -36,20 +38,22 @@ class SecuencialViewSet(viewsets.ModelViewSet):
         user = self.request.user
         empresa = serializer.validated_data.get("empresa")
 
-        if getattr(user, "rol", None) == Usuario.ROL_ADMIN_EMPRESA:
-            if empresa and empresa != user.empresa:
+        user_empresa_id = getattr(user, "empresa_id", None)
+        if user_empresa_id:
+            if empresa and empresa.pk != user_empresa_id:
                 raise PermissionDenied(
                     "No puedes crear secuenciales para otra empresa.")
-            serializer.save(empresa=user.empresa)
+            serializer.save(empresa_id=user_empresa_id)
             return
 
         serializer.save()
 
     def perform_update(self, serializer):
         user = self.request.user
-        if getattr(user, "rol", None) == Usuario.ROL_ADMIN_EMPRESA:
+        user_empresa_id = getattr(user, "empresa_id", None)
+        if user_empresa_id:
             instancia = self.get_object()
-            if instancia.empresa != user.empresa:
+            if instancia.empresa_id != user_empresa_id:
                 raise PermissionDenied(
                     "No puedes modificar secuenciales de otra empresa.")
         serializer.save()
@@ -65,8 +69,12 @@ class SecuencialViewSet(viewsets.ModelViewSet):
         motivo = request.data.get("motivo", "Bloqueado desde API")
         instancia.bloqueado = True
         instancia.motivo_bloqueo = motivo
+        instancia.fecha_bloqueo = timezone.now()
+        user = request.user if hasattr(request, "user") and request.user.is_authenticated else None
+        if user and hasattr(user, "rol"):
+            instancia.usuario_bloqueo = user
         instancia.save(
-            update_fields=["bloqueado", "motivo_bloqueo", "actualizado_at"])
+            update_fields=["bloqueado", "motivo_bloqueo", "fecha_bloqueo", "usuario_bloqueo", "actualizado_at"])
         data = self.get_serializer(instancia).data
         return Response(data, status=status.HTTP_200_OK)
 
@@ -75,7 +83,9 @@ class SecuencialViewSet(viewsets.ModelViewSet):
         instancia = self.get_object()
         instancia.bloqueado = False
         instancia.motivo_bloqueo = ""
+        instancia.fecha_bloqueo = None
+        instancia.usuario_bloqueo = None
         instancia.save(
-            update_fields=["bloqueado", "motivo_bloqueo", "actualizado_at"])
+            update_fields=["bloqueado", "motivo_bloqueo", "fecha_bloqueo", "usuario_bloqueo", "actualizado_at"])
         data = self.get_serializer(instancia).data
         return Response(data, status=status.HTTP_200_OK)
