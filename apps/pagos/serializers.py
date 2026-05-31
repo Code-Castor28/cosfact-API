@@ -4,11 +4,6 @@ from .models import Pago, HistorialPago
 
 
 class PagoSerializer(CleanModelSerializer):
-    """
-    Serializer para listar y ver detalles de pagos PENDIENTES.
-    Todos los campos importantes (monto, plan, empresa) son READ-ONLY
-    para evitar modificaciones accidentales.
-    """
     empresa_nombre = serializers.CharField(
         source="empresa.nombre", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
@@ -27,7 +22,6 @@ class PagoSerializer(CleanModelSerializer):
             "metodo_pago",
             "referencia",
             "fecha_pago",
-            "fecha_corte",
             "observaciones",
             "estado",
             "confirmado_por",
@@ -45,13 +39,43 @@ class PagoSerializer(CleanModelSerializer):
             "monto",
             "moneda",
             "fecha_pago",
-            "fecha_corte",
             "estado",
             "confirmado_por",
             "fecha_confirmacion",
             "creado_at",
             "actualizado_at",
         ]
+
+
+class PagoCreateSerializer(CleanModelSerializer):
+    empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+    plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
+
+    class Meta:
+        model = Pago
+        fields = [
+            "id",
+            "empresa",
+            "empresa_nombre",
+            "suscripcion",
+            "plan",
+            "plan_nombre",
+            "monto",
+            "moneda",
+            "tipo_pago",
+            "metodo_pago",
+            "referencia",
+            "observaciones",
+            "estado",
+            "creado_at",
+        ]
+        read_only_fields = ["id", "estado", "creado_at"]
+        extra_kwargs = {
+            "monto": {"required": False},
+            "empresa": {"required": True},
+            "suscripcion": {"required": True},
+            "plan": {"required": True},
+        }
 
 
 class PagoUpdateSerializer(CleanModelSerializer):
@@ -127,7 +151,6 @@ class PagoDetailSerializer(CleanModelSerializer):
             "metodo_pago",
             "referencia",
             "fecha_pago",
-            "fecha_corte",
             "observaciones",
             "estado",
             "confirmado_por",
@@ -147,7 +170,6 @@ class PagoDetailSerializer(CleanModelSerializer):
             "monto",
             "moneda",
             "fecha_pago",
-            "fecha_corte",
             "estado",
             "confirmado_por",
             "confirmado_por_username",

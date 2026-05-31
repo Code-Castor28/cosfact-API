@@ -135,6 +135,13 @@ class Suscripcion(models.Model):
     fecha_inicio = models.DateField()
     fecha_renovacion = models.DateField()
 
+    fecha_corte = models.PositiveSmallIntegerField(
+        validators=[MaxValueValidator(28)],
+        null=True,
+        blank=True,
+        help_text="Día fijo de facturación (1-28). Se asigna al crear y no cambia.",
+    )
+
     # Precio que pagó al momento de contratar (puede cambiar el plan, el precio histórico queda aquí)
     precio_pagado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=None)
 

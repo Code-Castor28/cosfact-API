@@ -1,6 +1,9 @@
 from datetime import datetime
+from decimal import Decimal
+from calendar import isleap
 from dateutil.relativedelta import relativedelta
 from django.db import transaction
+from django.http import FileResponse
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.exceptions import ValidationError
@@ -11,11 +14,13 @@ from typing import Type
 from .models import Pago, HistorialPago
 from .serializers import (
     PagoSerializer,
+    PagoCreateSerializer,
     PagoDetailSerializer,
     PagoUpdateSerializer,
     HistorialPagoSerializer,
 )
-from .permissions import IsSuperAdmin, IsAdminEmpresaOrSuperAdmin
+from .permissions import IsSuperAdmin
+from .pdf import generar_pdf_a4, generar_pdf_80mm
 from subscriptions.models import Suscripcion, PaqueteComprobantes
 
 
@@ -26,6 +31,8 @@ class PagoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsSuperAdmin]
 
     def get_serializer_class(self) -> Type:
+        if self.action == 'create':
+            return PagoCreateSerializer
         if self.action == 'retrieve':
             return PagoDetailSerializer
         if self.action == 'actualizar_confirmacion':
@@ -35,15 +42,10 @@ class PagoViewSet(viewsets.ModelViewSet):
         return PagoSerializer
 
     def get_queryset(self):
-        """
-        Por defecto, retorna solo pagos PENDIENTES.
-        Query param: ?estado=CONFIRMADO para filtrar otros.
-        """
         queryset = super().get_queryset()
         estado = self.request.query_params.get('estado')
 
         if not estado:
-            # Por defecto: solo PENDIENTES
             queryset = queryset.filter(estado=Pago.ESTADO_PENDIENTE)
         else:
             queryset = queryset.filter(estado=estado)
@@ -51,24 +53,9 @@ class PagoViewSet(viewsets.ModelViewSet):
         return queryset
 
     def create(self, request, *args, **kwargs):
-        """
-        POST deshabilitado para usuario normal.
-        Los pagos se generan automáticamente.
-        Solo admin puede crear manualmente para casos especiales (adelantos, cambios de plan).
-        """
-        return Response(
-            {
-                "error": "No se puede crear pagos directamente. "
-                         "Los pagos se generan automáticamente. "
-                         "Contacta a administración para casos especiales."
-            },
-            status=status.HTTP_405_METHOD_NOT_ALLOWED
-        )
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
-        """
-        [DEPRECATED] - create() está deshabilitado
-        """
         empresa = serializer.validated_data['empresa']
         suscripcion = serializer.validated_data['suscripcion']
 
@@ -83,24 +70,51 @@ class PagoViewSet(viewsets.ModelViewSet):
             raise ValidationError(
                 {"suscripcion": "La suscripción no está en un estado válido para crear pago."})
 
+        monto = serializer.validated_data.get('monto')
+
+        if monto is None:
+            es_primer_pago = not Pago.objects.filter(
+                suscripcion=suscripcion,
+                estado=Pago.ESTADO_CONFIRMADO,
+            ).exists()
+            if es_primer_pago and suscripcion.fecha_corte:
+                monto = self._calcular_monto_prorrateado(suscripcion)
+                serializer.save(monto=monto)
+                return
+
         serializer.save()
+
+    def _calcular_monto_prorrateado(self, suscripcion):
+        fecha_inicio = suscripcion.fecha_inicio
+        corte = suscripcion.fecha_corte
+        plan = suscripcion.plan
+
+        if fecha_inicio.day <= corte:
+            primer_corte = datetime(fecha_inicio.year, fecha_inicio.month, corte).date()
+        else:
+            mes_sig = fecha_inicio + relativedelta(months=1)
+            primer_corte = datetime(mes_sig.year, mes_sig.month, corte).date()
+
+        if fecha_inicio.day >= corte:
+            corte_anterior = datetime(fecha_inicio.year, fecha_inicio.month, corte).date()
+        else:
+            mes_ant = fecha_inicio - relativedelta(months=1)
+            corte_anterior = datetime(mes_ant.year, mes_ant.month, corte).date()
+
+        dias_periodo = (primer_corte - corte_anterior).days
+        dias_usados = (primer_corte - fecha_inicio).days
+
+        if suscripcion.ciclo == Suscripcion.CICLO_ANUAL:
+            year = fecha_inicio.year
+            dias_anio = 366 if isleap(year) else 365
+            return (plan.precio_anual * Decimal(dias_usados) / Decimal(dias_anio)).quantize(Decimal('0.01'))
+
+        return (plan.precio_mensual * Decimal(dias_usados) / Decimal(dias_periodo)).quantize(Decimal('0.01'))
 
     @action(detail=True, methods=['patch'])
     def actualizar_confirmacion(self, request, pk=None):
-        """
-        PATCH /api/v1/pagos/{id}/actualizar_confirmacion/
-
-        Permite actualizar SOLO:
-        - metodo_pago
-        - referencia
-        - observaciones
-
-        Al completar validación, confirma el pago automáticamente.
-        Valida: referencia requerida si metodo_pago != EFECTIVO
-        """
         pago = self.get_object()
 
-        # Validar estado
         if pago.estado != Pago.ESTADO_PENDIENTE:
             return Response(
                 {
@@ -110,11 +124,9 @@ class PagoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Usar serializer de actualización
         serializer = self.get_serializer(pago, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        # Validar referencia si no es EFECTIVO
         metodo_pago = serializer.validated_data.get(
             'metodo_pago', pago.metodo_pago)
         referencia = serializer.validated_data.get(
@@ -129,7 +141,6 @@ class PagoViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-        # Actualizar campos
         pago.metodo_pago = metodo_pago
         pago.referencia = serializer.validated_data.get(
             'referencia', pago.referencia)
@@ -137,41 +148,12 @@ class PagoViewSet(viewsets.ModelViewSet):
             'observaciones', pago.observaciones)
         pago.save()
 
-        # Confirmar pago automáticamente
         return self._confirmar_pago_internamente(pago, request)
 
     def _confirmar_pago_internamente(self, pago, request):
-        """
-        Lógica interna de confirmación de pago.
-        Reutilizable por actualizar_confirmacion y confirmar.
-        """
         if pago.estado != Pago.ESTADO_PENDIENTE:
             return Response(
                 {"error": "Solo se pueden confirmar pagos en estado PENDIENTE."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        fecha_pago = pago.fecha_pago
-        fecha_corte = pago.fecha_corte
-        dia_actual = fecha_pago.day
-
-        if dia_actual <= fecha_corte:
-            periodo_mes = fecha_pago.month
-            periodo_ano = fecha_pago.year
-        else:
-            siguiente = fecha_pago + relativedelta(months=1)
-            periodo_mes = siguiente.month
-            periodo_ano = siguiente.year
-
-        existe_historial = HistorialPago.objects.filter(
-            empresa=pago.empresa,
-            periodo_mes=periodo_mes,
-            periodo_ano=periodo_ano,
-        ).exists()
-
-        if existe_historial:
-            return Response(
-                {"error": f"Ya existe un pago confirmado para el período {periodo_mes}/{periodo_ano}."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -182,50 +164,100 @@ class PagoViewSet(viewsets.ModelViewSet):
             pago.save()
 
             suscripcion = pago.suscripcion
-            if periodo_mes == 12:
-                fecha_inicio = datetime(periodo_ano, 1, 1).date()
-            else:
-                fecha_inicio = datetime(periodo_ano, periodo_mes, 1).date()
 
-            if periodo_mes == 12:
-                fecha_fin = datetime(periodo_ano + 1, 1, 1).date()
-            else:
-                fecha_fin = datetime(periodo_ano, periodo_mes + 1, 1).date()
-            fecha_fin = fecha_fin - relativedelta(days=1)
+            if pago.tipo_pago == Pago.TIPO_RENOVACION:
+                nueva_fecha_inicio = suscripcion.fecha_renovacion
+                periodo_mes = nueva_fecha_inicio.month
+                periodo_ano = nueva_fecha_inicio.year
 
-            suscripcion.fecha_inicio = fecha_inicio
-            suscripcion.fecha_renovacion = fecha_fin
-            suscripcion.estado = Suscripcion.ESTADO_ACTIVA
-            suscripcion.plan = pago.plan
-            suscripcion.save()
+                if suscripcion.ciclo == Suscripcion.CICLO_ANUAL:
+                    nueva_fecha_renovacion = nueva_fecha_inicio + relativedelta(years=1)
+                else:
+                    nueva_fecha_renovacion = nueva_fecha_inicio + relativedelta(months=1)
 
-            fecha_vencimiento = None
-            if suscripcion.ciclo in [Suscripcion.CICLO_MENSUAL, Suscripcion.CICLO_ANUAL]:
+                existe_historial = HistorialPago.objects.filter(
+                    empresa=pago.empresa,
+                    suscripcion=suscripcion,
+                    periodo_mes=periodo_mes,
+                    periodo_ano=periodo_ano,
+                    pago__tipo_pago=Pago.TIPO_RENOVACION,
+                ).exists()
+
+                if existe_historial:
+                    return Response(
+                        {"error": f"Ya existe un pago confirmado para el período {periodo_mes}/{periodo_ano}."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                actualizadas = Suscripcion.objects.filter(
+                    id=suscripcion.id,
+                    fecha_renovacion=suscripcion.fecha_renovacion,
+                ).update(
+                    fecha_inicio=nueva_fecha_inicio,
+                    fecha_renovacion=nueva_fecha_renovacion,
+                    estado=Suscripcion.ESTADO_ACTIVA,
+                    plan=pago.plan,
+                )
+
+                if actualizadas == 0:
+                    return Response(
+                        {"error": "La suscripción fue modificada por otro proceso."},
+                        status=status.HTTP_409_CONFLICT
+                    )
+
+                suscripcion.refresh_from_db()
+
                 fecha_vencimiento = timezone.make_aware(
-                    datetime.combine(fecha_fin, datetime.min.time()))
+                    datetime.combine(nueva_fecha_renovacion, datetime.min.time())
+                )
 
-            paquete = PaqueteComprobantes.objects.create(
-                empresa=pago.empresa,
-                suscripcion=suscripcion,
-                plan=pago.plan,
-                total_comprobantes=pago.plan.limite_comprobantes,
-                comprobantes_usados=0,
-                estado=PaqueteComprobantes.ESTADO_ACTIVO,
-                origen=PaqueteComprobantes.ORIGEN_SUSCRIPCION,
-                fecha_vencimiento=fecha_vencimiento,
-            )
+                paquete = PaqueteComprobantes.objects.create(
+                    empresa=pago.empresa,
+                    suscripcion=suscripcion,
+                    plan=pago.plan,
+                    total_comprobantes=pago.plan.limite_comprobantes,
+                    comprobantes_usados=0,
+                    estado=PaqueteComprobantes.ESTADO_ACTIVO,
+                    origen=PaqueteComprobantes.ORIGEN_SUSCRIPCION,
+                    fecha_vencimiento=fecha_vencimiento,
+                )
 
-            historial = HistorialPago.objects.create(
-                empresa=pago.empresa,
-                suscripcion=suscripcion,
-                plan=pago.plan,
-                pago=pago,
-                paquete=paquete,
-                periodo_mes=periodo_mes,
-                periodo_ano=periodo_ano,
-                monto_pagado=pago.monto,
-                comprobantes_asignados=pago.plan.limite_comprobantes,
-            )
+                historial = HistorialPago.objects.create(
+                    empresa=pago.empresa,
+                    suscripcion=suscripcion,
+                    plan=pago.plan,
+                    pago=pago,
+                    paquete=paquete,
+                    periodo_mes=periodo_mes,
+                    periodo_ano=periodo_ano,
+                    monto_pagado=pago.monto,
+                    comprobantes_asignados=pago.plan.limite_comprobantes,
+                )
+
+            else:
+                paquete = PaqueteComprobantes.objects.create(
+                    empresa=pago.empresa,
+                    suscripcion=suscripcion,
+                    plan=pago.plan,
+                    total_comprobantes=pago.plan.limite_comprobantes,
+                    comprobantes_usados=0,
+                    estado=PaqueteComprobantes.ESTADO_ACTIVO,
+                    origen=PaqueteComprobantes.ORIGEN_ADICIONAL,
+                    fecha_vencimiento=None,
+                )
+
+                ahora = timezone.now()
+                historial = HistorialPago.objects.create(
+                    empresa=pago.empresa,
+                    suscripcion=suscripcion,
+                    plan=pago.plan,
+                    pago=pago,
+                    paquete=paquete,
+                    periodo_mes=ahora.month,
+                    periodo_ano=ahora.year,
+                    monto_pagado=pago.monto,
+                    comprobantes_asignados=pago.plan.limite_comprobantes,
+                )
 
         serializer = PagoDetailSerializer(pago)
         return Response({
@@ -245,9 +277,6 @@ class PagoViewSet(viewsets.ModelViewSet):
         })
 
     def destroy(self, request, *args, **kwargs):
-        """
-        Solo se pueden eliminar pagos en estado PENDIENTE.
-        """
         instance = self.get_object()
         if instance.estado != Pago.ESTADO_PENDIENTE:
             return Response(
@@ -255,18 +284,6 @@ class PagoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         return super().destroy(request, *args, **kwargs)
-
-    @action(detail=True, methods=['post'])
-    def confirmar(self, request, pk=None):
-        """
-        [DEPRECATED - usar actualizar_confirmacion en su lugar]
-
-        POST /api/v1/pagos/{id}/confirmar/
-
-        Se mantiene por compatibilidad hacia atrás.
-        En futuro será removido a favor de actualizar_confirmacion.
-        """
-        return self._confirmar_pago_internamente(self.get_object(), request)
 
     @action(detail=True, methods=['post'])
     def rechazar(self, request, pk=None):
@@ -298,3 +315,25 @@ class PagoViewSet(viewsets.ModelViewSet):
         serializer = HistorialPagoSerializer(
             page, many=True, context=self.get_serializer_context())
         return self.get_paginated_response(serializer.data)
+
+    @action(detail=True, methods=['get'], url_path='pdf/a4')
+    def pdf_a4(self, request, pk=None):
+        pago = self.get_object()
+        pdf_buffer = generar_pdf_a4(pago)
+        return FileResponse(
+            pdf_buffer,
+            content_type='application/pdf',
+            as_attachment=True,
+            filename=f"comprobante-{pago.id}-a4.pdf",
+        )
+
+    @action(detail=True, methods=['get'], url_path='pdf/80mm')
+    def pdf_80mm(self, request, pk=None):
+        pago = self.get_object()
+        pdf_buffer = generar_pdf_80mm(pago)
+        return FileResponse(
+            pdf_buffer,
+            content_type='application/pdf',
+            as_attachment=True,
+            filename=f"comprobante-{pago.id}-80mm.pdf",
+        )

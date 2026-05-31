@@ -1,17 +1,5 @@
 """
 Tests unitarios para pagos.tasks.generar_pagos_automaticos.
-
-Cobertura:
-    - Ciclo MENSUAL  -> usa precio_mensual
-    - Ciclo ANUAL    -> usa precio_anual
-    - Fallback       -> usa precio_pagado cuando el plan no tiene precio para el ciclo
-    - Ciclo invalido -> fallback a precio_pagado
-    - Precio cero    -> error, sin creacion de pago
-    - Pago PENDIENTE duplicado -> skip
-    - HistorialPago duplicado  -> skip
-    - Status 'no_action_needed' cuando todo se salta sin errores
-    - Status 'failed' cuando hay errores y 0 pagos creados
-    - Status 'partial_success' cuando hay errores pero tambien pagos creados
 """
 import uuid
 from datetime import timedelta
@@ -27,7 +15,6 @@ from django.utils import timezone
 def _make_plan(
     precio_mensual=None,
     precio_anual=None,
-    fecha_corte=1,
     nombre="Plan Test",
 ):
     plan = MagicMock()
@@ -37,14 +24,11 @@ def _make_plan(
         str(precio_mensual)) if precio_mensual is not None else None
     plan.precio_anual = Decimal(
         str(precio_anual)) if precio_anual is not None else None
-    plan.fecha_corte = fecha_corte
-    # Eliminar atributo 'precio' para garantizar que el codigo no lo usa
     del plan.precio
     return plan
 
 
 def _make_suscripcion(ciclo, plan, precio_pagado=None, empresa=None):
-    # importar para usar constantes reales
     from subscriptions.models import Suscripcion
 
     if empresa is None:
@@ -101,7 +85,6 @@ class TestSeleccionarMonto(TestCase):
     def test_fallback_precio_pagado_cuando_precio_mensual_cero(self):
         plan = _make_plan(precio_mensual='0', precio_anual='500.00')
         sus = _make_suscripcion('MENSUAL', plan, precio_pagado='750.00')
-        # precio_mensual=0 -> invalido; precio_anual no aplica para MENSUAL -> fallback
         self.assertEqual(self._call(sus), Decimal('750.00'))
 
     def test_ciclo_desconocido_usa_precio_mensual_primero(self):
@@ -131,51 +114,17 @@ class TestSeleccionarMonto(TestCase):
         self.assertEqual(self._call(sus), Decimal('400.00'))
 
 
-class TestCalcularPeriodo(TestCase):
-    """Tests de _calcular_periodo."""
-
-    def _call(self, ahora, fecha_corte):
-        from pagos.tasks import _calcular_periodo
-        return _calcular_periodo(ahora, fecha_corte)
-
-    def test_dia_igual_a_corte_es_mes_actual(self):
-        from datetime import datetime
-        ahora = datetime(2026, 5, 15, 10, 0)
-        mes, ano = self._call(ahora, fecha_corte=15)
-        self.assertEqual((mes, ano), (5, 2026))
-
-    def test_dia_menor_a_corte_es_mes_actual(self):
-        from datetime import datetime
-        ahora = datetime(2026, 5, 10)
-        mes, ano = self._call(ahora, fecha_corte=20)
-        self.assertEqual((mes, ano), (5, 2026))
-
-    def test_dia_mayor_a_corte_es_mes_siguiente(self):
-        from datetime import datetime
-        ahora = datetime(2026, 5, 25)
-        mes, ano = self._call(ahora, fecha_corte=20)
-        self.assertEqual((mes, ano), (6, 2026))
-
-    def test_ultimo_dia_diciembre_pasa_a_enero(self):
-        from datetime import datetime
-        ahora = datetime(2026, 12, 25)
-        mes, ano = self._call(ahora, fecha_corte=20)
-        self.assertEqual((mes, ano), (1, 2027))
-
-
 class TestGenerarPagosAutomaticos(TestCase):
     """
     Tests de integracion liviana para generar_pagos_automaticos.
     Se mockean todos los accesos a DB.
     """
 
-    # -- utilidades internas -------------------------------------------------
-
-    def _run_task_with_suscripciones(self, suscripciones, *, existe_pendiente=False, existe_historial=False):
-        """
-        Ejecuta la task inyectando una queryset falsa de suscripciones
-        y controlando los exists() de Pago / HistorialPago.
-        """
+    def _run_task_with_suscripciones(
+        self, suscripciones, *,
+        existe_pendiente=False,
+        existe_confirmado=True,
+    ):
         from pagos.tasks import generar_pagos_automaticos
 
         qs_mock = MagicMock()
@@ -190,24 +139,29 @@ class TestGenerarPagosAutomaticos(TestCase):
 
         with patch('pagos.tasks.Suscripcion.objects') as MockSusObjects, \
                 patch('pagos.tasks.Pago') as MockPago, \
-                patch('pagos.tasks.HistorialPago') as MockHistorial, \
                 patch('pagos.tasks.transaction') as MockTx:
 
             MockSusObjects.filter.return_value = qs_mock
 
-            MockPago.objects.filter.return_value.exists.return_value = existe_pendiente
+            def filter_side_effect(**kwargs):
+                f = MagicMock()
+                if 'tipo_pago' in kwargs:
+                    f.exists.return_value = existe_pendiente
+                else:
+                    f.exists.return_value = existe_confirmado
+                return f
+
+            MockPago.objects.filter.side_effect = filter_side_effect
             MockPago.objects.create.return_value = pago_creado
             MockPago.ESTADO_PENDIENTE = 'PENDIENTE'
+            MockPago.ESTADO_CONFIRMADO = 'CONFIRMADO'
+            MockPago.TIPO_RENOVACION = 'RENOVACION'
             MockPago.MONEDA_DOP = 'DOP'
-
-            MockHistorial.objects.filter.return_value.exists.return_value = existe_historial
 
             MockTx.atomic.return_value.__enter__ = MagicMock(return_value=None)
             MockTx.atomic.return_value.__exit__ = MagicMock(return_value=False)
 
             return generar_pagos_automaticos()
-
-    # -- casos ---------------------------------------------------------------
 
     def test_crea_pago_mensual(self):
         plan = _make_plan(precio_mensual='1500.00')
@@ -225,7 +179,7 @@ class TestGenerarPagosAutomaticos(TestCase):
         self.assertEqual(resultado['pagos_creados'], 1)
 
     def test_crea_pago_con_fallback_precio_pagado(self):
-        plan = _make_plan()   # sin precios en plan
+        plan = _make_plan()
         sus = _make_suscripcion('MENSUAL', plan, precio_pagado='800.00')
         resultado = self._run_task_with_suscripciones([sus])
         self.assertEqual(resultado['status'], 'success')
@@ -241,17 +195,18 @@ class TestGenerarPagosAutomaticos(TestCase):
         self.assertEqual(resultado['errores'], 0)
         self.assertEqual(resultado['status'], 'no_action_needed')
 
-    def test_salta_si_existe_historial(self):
+    def test_salta_si_no_hay_pago_confirmado_previo(self):
         plan = _make_plan(precio_mensual='1500.00')
         sus = _make_suscripcion('MENSUAL', plan)
         resultado = self._run_task_with_suscripciones(
-            [sus], existe_historial=True)
+            [sus], existe_confirmado=False)
         self.assertEqual(resultado['pagos_creados'], 0)
         self.assertEqual(resultado['saltados'], 1)
+        self.assertEqual(resultado['errores'], 0)
         self.assertEqual(resultado['status'], 'no_action_needed')
 
     def test_error_cuando_sin_ninguna_fuente_de_precio(self):
-        plan = _make_plan()  # todos None
+        plan = _make_plan()
         sus = _make_suscripcion('MENSUAL', plan, precio_pagado=None)
         resultado = self._run_task_with_suscripciones([sus])
         self.assertEqual(resultado['pagos_creados'], 0)
@@ -259,7 +214,6 @@ class TestGenerarPagosAutomaticos(TestCase):
         self.assertEqual(resultado['status'], 'failed')
 
     def test_status_partial_success(self):
-        """Un pago creado + un error -> partial_success."""
         plan_ok = _make_plan(precio_mensual='1000.00')
         plan_bad = _make_plan()
 
@@ -273,8 +227,6 @@ class TestGenerarPagosAutomaticos(TestCase):
         sus_ok = _make_suscripcion('MENSUAL', plan_ok, empresa=empresa_ok)
         sus_bad = _make_suscripcion('MENSUAL', plan_bad, empresa=empresa_bad)
 
-        # Necesitamos que el primer Pago.objects.filter devuelva exists()=False
-        # y el segundo tambien, pero el segundo no llega a crear pago por monto invalido.
         from pagos.tasks import generar_pagos_automaticos
 
         qs_mock = MagicMock()
@@ -289,17 +241,21 @@ class TestGenerarPagosAutomaticos(TestCase):
 
         with patch('pagos.tasks.Suscripcion.objects') as MockSusObjects, \
                 patch('pagos.tasks.Pago') as MockPago, \
-                patch('pagos.tasks.HistorialPago') as MockHistorial, \
                 patch('pagos.tasks.transaction') as MockTx:
 
             MockSusObjects.filter.return_value = qs_mock
 
-            MockPago.objects.filter.return_value.exists.return_value = False
+            def filter_side_effect(**kwargs):
+                f = MagicMock()
+                f.exists.return_value = 'tipo_pago' not in kwargs
+                return f
+
+            MockPago.objects.filter.side_effect = filter_side_effect
             MockPago.objects.create.return_value = pago_creado
             MockPago.ESTADO_PENDIENTE = 'PENDIENTE'
+            MockPago.ESTADO_CONFIRMADO = 'CONFIRMADO'
+            MockPago.TIPO_RENOVACION = 'RENOVACION'
             MockPago.MONEDA_DOP = 'DOP'
-
-            MockHistorial.objects.filter.return_value.exists.return_value = False
 
             MockTx.atomic.return_value.__enter__ = MagicMock(return_value=None)
             MockTx.atomic.return_value.__exit__ = MagicMock(return_value=False)
