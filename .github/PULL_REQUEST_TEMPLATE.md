@@ -10,7 +10,7 @@ Cambios principales:
 - fix de la github accion para mejorar el flujo de despliegues
 -mejor en la app de pagos
 - fix de pdf
-- probando la fecha ID
+- probando la fecha ID 2
 
 
 Incluye tests unitarios que cubren generación para ciclos `MENSUAL` y `ANUAL`.
