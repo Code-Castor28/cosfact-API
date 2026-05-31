@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError  # type: ignore[import-untyped]
 
 class CleanModelSerializer(serializers.ModelSerializer):
     """
@@ -12,7 +12,12 @@ class CleanModelSerializer(serializers.ModelSerializer):
         attrs = super().validate(attrs)
         
         # Instantiate the model in memory to run validation
-        ModelClass = self.Meta.model
+        meta = getattr(self, "Meta", None)
+        ModelClass = getattr(meta, "model", None)
+        
+        if not ModelClass:
+            return attrs
+            
         instance = ModelClass(**attrs)
         
         # If it's an update, apply the changes to the existing instance

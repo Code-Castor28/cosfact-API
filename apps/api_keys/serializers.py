@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from core.serializers import CleanModelSerializer
-from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError  # type: ignore[import-untyped]
 from empresas.models import Empresa
 from .models import ApiKey
 
