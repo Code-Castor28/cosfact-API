@@ -45,6 +45,9 @@ SECRET_KEY = env('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env('DEBUG')
 
+DGII_CERT_PATH = env("DGII_CERT_PATH")
+DGII_CERT_PASSWORD = env("DGII_CERT_PASSWORD")
+
 # ─── Usuario custom ────────────────────────────────────────────────────────────ojo
 AUTH_USER_MODEL = 'users.Usuario'
 

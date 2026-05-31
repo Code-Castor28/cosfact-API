@@ -46,3 +46,9 @@ postman/
 venv_linux/
 certificados_proyecto_respuestas.txt
 deploy.sh
+templates/
+
+certificados/
+*.p12
+*.crt
+*.key
