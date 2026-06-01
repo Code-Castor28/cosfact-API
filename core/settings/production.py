@@ -5,12 +5,16 @@ from .base import *
 # ------------------------------------------------------------------------------
 # CONFIGURACIÓN DE HOSTS (ALLOWED_HOSTS)
 # ------------------------------------------------------------------------------
-_hosts_value = env('ALLOWED_HOSTS')
-_hosts_str = str(_hosts_value) if _hosts_value else ''
-ALLOWED_HOSTS = [
-    h.strip()
-    for h in _hosts_str.split(',') if h.strip()
-]
+import os as _os
+_hosts_raw = _os.environ.get('ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [h.strip() for h in _hosts_raw.split(',') if h.strip()]
+ALLOWED_HOSTS.append('testserver')
+
+# ------------------------------------------------------------------------------
+# CONFIGURACIÓN DE ORÍGENES DE CONFIANZA CSRF
+# ------------------------------------------------------------------------------
+_origins_raw = _os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _origins_raw.split(',') if o.strip()]
 ALLOWED_HOSTS.append('testserver')
 
 # ------------------------------------------------------------------------------

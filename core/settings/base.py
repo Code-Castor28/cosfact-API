@@ -27,6 +27,7 @@ env = environ.Env(
     APP_VERSION=(str, 'unknown'),
     SENTRY_DSN=(str, None),
     ALLOWED_HOSTS=(list, []),
+    CSRF_TRUSTED_ORIGINS=(list, []),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
