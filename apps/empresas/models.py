@@ -1,15 +1,14 @@
-# Create your models here.
 # ─── MODELS.PY — apps/empresas/models.py ───
 """
 apps/empresas/models.py
 Tenants del SaaS. Cada empresa es un cliente.
 SEGURIDAD CRÍTICA:
-- El certificado .p12 NUNCA se guarda localmente. Solo se guarda una storage_key
-  que apunta al archivo en almacenamiento externo (MinIO / DigitalOcean Spaces).
-- El PIN del certificado NUNCA toca la base de datos. Viaja cifrado en el request
-  y se pasa directamente al proceso de firma en memoria.
-- El token DGII se guarda cifrado (Fernet AES-128-CBC) en la DB.
-  La FERNET_KEY vive en variables de entorno del VPS.
+- El PIN del certificado .p12 se cifra con Fernet (CRYPTOGRAPHY_MASTER_KEY)
+  y se almacena en CertificadoDigital.pin_cifrado.
+- El PIN solo se descifra en memoria durante la firma y se descarta inmediatamente.
+- El archivo .p12 se guarda via FileField en CertificadoDigital.archivo.
+- El token DGII se guarda cifrado (Fernet AES-128-CBC) en TokenDGII.token_cifrado.
+- La FERNET_KEY / CRYPTOGRAPHY_MASTER_KEY vive en variables de entorno del VPS.
 """
 import uuid
 from django.db import models
@@ -62,6 +61,11 @@ class Empresa(models.Model):
     ambiente = models.CharField(max_length=20, choices=AMBIENTES, default=AMBIENTE_TEST)
     estado = models.CharField(max_length=30, choices=ESTADOS, default=ESTADO_PENDIENTE)
     activa = models.BooleanField(default=True)
+
+    # Datos de contacto
+    correo = models.EmailField(blank=True)
+    telefono = models.CharField(max_length=20, blank=True)
+    direccion = models.TextField(blank=True)
 
     # Certificado digital .p12 — NUNCA guardar el archivo aquí
     # storage_key es la referencia al objeto en MinIO/S3: "{uuid}/certs/certificado.p12"
@@ -163,3 +167,35 @@ class TokenDGII(models.Model):
     def invalidar(self):
         self.activo = False
         self.save(update_fields=["activo"])
+
+
+class CertificadoDigital(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    empresa = models.ForeignKey(
+        Empresa,
+        on_delete=models.CASCADE,
+        related_name="certificados",
+    )
+    alias = models.CharField(max_length=100, help_text="Nombre descriptivo del certificado")
+    archivo = models.FileField(
+        upload_to="certificados/",
+        help_text="Archivo .p12 del certificado digital",
+    )
+    pin_cifrado = models.TextField(
+        help_text="PIN del certificado cifrado con Fernet (CRYPTOGRAPHY_MASTER_KEY)",
+    )
+    vigencia_desde = models.DateField()
+    vigencia_hasta = models.DateField()
+    activo = models.BooleanField(
+        default=True,
+        help_text="Solo un certificado activo por empresa",
+    )
+    creado_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "certificados_digitales"
+        verbose_name = "Certificado Digital"
+        verbose_name_plural = "Certificados Digitales"
+
+    def __str__(self):
+        return f"{self.alias} — {self.empresa.rnc} {'(activo)' if self.activo else ''}"

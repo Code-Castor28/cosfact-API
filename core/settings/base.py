@@ -77,6 +77,7 @@ INSTALLED_APPS = [
     'dgii',
     'webhooks',
     'audit',
+    'clientes',
     'rest_framework_simplejwt',
     'django_celery_beat',
 ]

@@ -25,21 +25,47 @@ def _crear_evento(comprobante, estado_anterior, estado_nuevo, mensaje=""):
     )
 
 
+def _get_certificado_activo(empresa: Empresa):
+    """
+    Obtiene el certificado activo de la empresa desde CertificadoDigital.
+    """
+    from empresas.models import CertificadoDigital
+
+    cert = CertificadoDigital.objects.filter(
+        empresa=empresa, activo=True
+    ).first()
+    if not cert:
+        raise ValueError(
+            f"No hay certificado activo para empresa {empresa.rnc}"
+        )
+    if not cert.archivo:
+        raise ValueError(
+            f"El certificado activo de {empresa.rnc} no tiene archivo .p12"
+        )
+    if not cert.pin_cifrado:
+        raise ValueError(
+            f"El certificado activo de {empresa.rnc} no tiene PIN configurado"
+        )
+    return cert
+
+
 def _cert_path_for_empresa(empresa: Empresa) -> str:
-    base = getattr(settings, "CERT_BASE_PATH", None) or ""
-    if not base:
-        base = "/var/derejfact/certificados/"
-    return f"{base.rstrip('/')}/{empresa.id}.p12"
+    """
+    Obtiene la ruta del archivo .p12 desde CertificadoDigital.
+    """
+    cert = _get_certificado_activo(empresa)
+    return cert.archivo.path
 
 
 def _get_cert_pin(empresa: Empresa) -> str:
-    from os import environ
+    """
+    Obtiene el PIN del certificado descifrándolo desde CertificadoDigital.
+    El PIN se descifra en memoria con Fernet y se descarta tras usarlo.
+    """
+    from empresas.crypto import descifrar
 
-    env_key = f"CERT_PIN_{empresa.id}"
-    pin = environ.get(env_key)
-    if not pin:
-        raise ValueError(f"No existe {env_key} en variables de entorno.")
-    return pin
+    cert = _get_certificado_activo(empresa)
+    return descifrar(cert.pin_cifrado)
 
 
 def _xml_path_for_comprobante(comprobante: Comprobante) -> str:

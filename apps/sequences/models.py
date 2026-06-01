@@ -16,6 +16,7 @@ CRÍTICO:
 Formato e-NCF: E + tipo(2 dígitos) + secuencial(8 dígitos con ceros)
 Ejemplo: E310000001 (tipo 31, primer comprobante)
 """
+
 import uuid
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
@@ -69,9 +70,9 @@ class Secuencial(models.Model):
     )
     motivo_bloqueo = models.CharField(max_length=255, blank=True)
 
-    fecha_bloqueo = models.DateTimeField(
+    fecha_bloqueo = models.DateTimeField(# type: ignore[call-type]
         null=True, blank=True,
-        help_text="Momento en que se bloqueó el secuencial.",
+        help_text="Momento en que se bloqueó el secuencial."
     )
     usuario_bloqueo = models.ForeignKey(
         "users.Usuario",
@@ -93,16 +94,17 @@ class Secuencial(models.Model):
                 fields=["empresa", "tipo_ecf"],
                 name="uq_secuencial_empresa_tipoecf",
             ),
-            models.CheckConstraint(
-                check=models.Q(minimo_asignado__gte=1),
+            models.CheckConstraint(# type: ignore[call-arg]
+                check=models.Q(minimo_asignado__gte=1),# type: ignore[call-arg]
                 name="ck_secuencial_minimo_asignado",
             ),
-            models.CheckConstraint(
-                check=models.Q(maximo_asignado__gt=models.F("minimo_asignado")),
+            models.CheckConstraint(# type: ignore[call-arg]
+                check=models.Q(# type: ignore[call-arg]
+                    maximo_asignado__gt=models.F("minimo_asignado")),
                 name="ck_secuencial_maximo_mayor_minimo",
             ),
-            models.CheckConstraint(
-                check=models.Q(ultimo_numero__gte=0),
+            models.CheckConstraint(# type: ignore[call-arg]# type: ignore[call-arg]
+                check=models.Q(ultimo_numero__gte=0),# type: ignore[call-arg]
                 name="ck_secuencial_ultimo_numero",
             ),
         ]
@@ -201,7 +203,7 @@ class MovimientoSecuencial(models.Model):
         help_text="Usuario que realizó la operación.",
     )
 
-    creado_at = models.DateTimeField(auto_now_add=True)
+    creado_at = models.DateTimeField(auto_now_add=True) # type: ignore[call-arg]
 
     class Meta:
         db_table = "movimientos_secuenciales"
