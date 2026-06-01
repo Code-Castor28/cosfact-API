@@ -69,17 +69,17 @@ class Migration(migrations.Migration):
         ),
         migrations.AddConstraint(
             model_name='secuencial',
-            constraint=models.CheckConstraint(check=models.Q( # Error: Too many arguments for "greet"  [call-arg]
+            constraint=models.CheckConstraint(condition=models.Q(
                 ('minimo_asignado__gte', 1)), name='ck_secuencial_minimo_asignado'),
         ),
         migrations.AddConstraint(
             model_name='secuencial',
-            constraint=models.CheckConstraint(check=models.Q(('maximo_asignado__gt', models.F(
+            constraint=models.CheckConstraint(condition=models.Q(('maximo_asignado__gt', models.F(
                 'minimo_asignado'))), name='ck_secuencial_maximo_mayor_minimo'),
         ),
         migrations.AddConstraint(
             model_name='secuencial',
-            constraint=models.CheckConstraint(check=models.Q(
+            constraint=models.CheckConstraint(condition=models.Q(
                 ('ultimo_numero__gte', 0)), name='ck_secuencial_ultimo_numero'),
         ),
         migrations.AddField(
