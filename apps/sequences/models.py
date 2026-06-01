@@ -94,17 +94,17 @@ class Secuencial(models.Model):
                 fields=["empresa", "tipo_ecf"],
                 name="uq_secuencial_empresa_tipoecf",
             ),
-            models.CheckConstraint(# type: ignore[call-arg]
-                check=models.Q(minimo_asignado__gte=1),# type: ignore[call-arg]
+            models.CheckConstraint(
+                condition=models.Q(minimo_asignado__gte=1),
                 name="ck_secuencial_minimo_asignado",
             ),
-            models.CheckConstraint(# type: ignore[call-arg]
-                check=models.Q(# type: ignore[call-arg]
+            models.CheckConstraint(
+                condition=models.Q(
                     maximo_asignado__gt=models.F("minimo_asignado")),
                 name="ck_secuencial_maximo_mayor_minimo",
             ),
-            models.CheckConstraint(# type: ignore[call-arg]# type: ignore[call-arg]
-                check=models.Q(ultimo_numero__gte=0),# type: ignore[call-arg]
+            models.CheckConstraint(
+                condition=models.Q(ultimo_numero__gte=0),
                 name="ck_secuencial_ultimo_numero",
             ),
         ]

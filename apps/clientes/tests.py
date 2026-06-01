@@ -48,6 +48,22 @@ class ClienteModelTest(TestCase):
                 razon_social="Cliente inválido",
             )
 
+    def test_rnc_cedula_9_digitos_persona_juridica(self):
+        cliente = Cliente.objects.create(
+            empresa=self.empresa,
+            rnc_cedula="123456789",
+            razon_social="Empresa Jurídica",
+        )
+        self.assertEqual(cliente.rnc_cedula, "123456789")
+
+    def test_rnc_cedula_11_digitos_persona_fisica(self):
+        cliente = Cliente.objects.create(
+            empresa=self.empresa,
+            rnc_cedula="00123456789",
+            razon_social="Persona Física",
+        )
+        self.assertEqual(cliente.rnc_cedula, "00123456789")
+
     def test_rnc_cedula_duplicado_misma_empresa_lanza_error(self):
         Cliente.objects.create(
             empresa=self.empresa,

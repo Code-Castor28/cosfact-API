@@ -30,9 +30,13 @@ class Cliente(models.Model):
 
     def clean(self):
         if self.rnc_cedula:
-            if not self.rnc_cedula.isdigit() or len(self.rnc_cedula) != 11:
+            if not self.rnc_cedula.isdigit():
                 raise ValidationError(
-                    {"rnc_cedula": "RNC/Cédula debe tener exactamente 11 dígitos numéricos."}
+                    {"rnc_cedula": "RNC/Cédula debe contener solo dígitos numéricos."}
+                )
+            if len(self.rnc_cedula) not in (9, 11):
+                raise ValidationError(
+                    {"rnc_cedula": "RNC/Cédula debe tener 9 dígitos (Jurídico) o 11 dígitos (Físico)."}
                 )
 
     def save(self, *args, **kwargs):
