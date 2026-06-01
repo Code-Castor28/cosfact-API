@@ -886,3 +886,118 @@ Y para el panel humano siempre es:
 ```http
 Authorization: Bearer <jwt_access>
 ```
+
+---
+
+## 11. Tabla unificada de endpoints existentes
+
+Todas las rutas bajo `/api/v1/` que **sí existen hoy** en el código. La columna **Permiso** indica:
+- `JWT` → header `Authorization: Bearer <jwt_access>` (panel admin)
+- `API-Key` → header `Authorization: Api-Key <token>` (POS/terceros)
+- `API-Key / JWT` → ambos métodos son aceptados
+- `Público` → sin autenticación
+
+### 11.1 Autenticación
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/auth/login/` | 200 | Público | Login con email + password. Devuelve `access` + `refresh`. |
+| `POST` | `/api/v1/auth/token/refresh/` | 200 | Público | Refresca `access` usando `refresh`. |
+| `POST` | `/api/v1/auth/recover-password/` | 200 | Público | Inicia recuperación de contraseña. |
+
+### 11.2 Usuarios
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/usuarios/` | 201 | JWT | Crear usuario. `SUPERADMIN` no lleva empresa. |
+| `GET` | `/api/v1/usuarios/` | 200 | JWT | Listar usuarios (filtrado por rol/empresa). |
+| `GET` | `/api/v1/usuarios/me/` | 200 | JWT | Perfil del usuario autenticado. |
+| `PATCH` | `/api/v1/usuarios/me/` | 200 | JWT | Actualizar `nombre` y `apellido` propios. |
+| `POST` | `/api/v1/usuarios/me/change-password/` | 200 | JWT | Cambiar password (`password_actual` + `password_nueva`). |
+
+### 11.3 Empresas
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/empresas/` | 201 | JWT | Crear empresa. |
+| `GET` | `/api/v1/empresas/` | 200 | API-Key / JWT | Listar empresas (API-Key retorna la propia; JWT todas). |
+| `GET` | `/api/v1/empresas/{id}/` | 200 | API-Key / JWT | Detalle de empresa. |
+| `GET` | `/api/v1/empresas/{id}/suscripcion/` | 200 | JWT | Suscripción activa de la empresa. |
+| `GET` | `/api/v1/empresas/{id}/comprobantes/` | 200 | JWT | Paquetes activos de comprobantes. |
+
+### 11.4 Planes
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/planes/` | 201 | JWT | Crear plan. |
+| `GET` | `/api/v1/planes/` | 200 | JWT | Listar planes. |
+
+### 11.5 Suscripciones
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/suscripciones/` | 201 | JWT | Crear suscripción. |
+| `GET` | `/api/v1/suscripciones/` | 200 | JWT | Listar suscripciones. |
+
+### 11.6 Paquetes
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/paquetes/` | 201 | JWT | Crear paquete de comprobantes. |
+| `GET` | `/api/v1/paquetes/` | 200 | JWT | Listar paquetes. |
+
+### 11.7 API Keys
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/api-keys/` | 201 | JWT | Crear API Key. Devuelve `token` una sola vez. |
+| `GET` | `/api/v1/api-keys/` | 200 | JWT | Listar API Keys. |
+| `POST` | `/api/v1/api-keys/{id}/revocar/` | 200 | JWT | Revocar key (body: `motivo`). |
+| `POST` | `/api/v1/api-keys/{id}/rotar/` | 200 | JWT | Rotar key (`nombre`, `expira_at` opcionales). |
+
+### 11.8 Clientes
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/clientes/` | 201 / 409 | API-Key / JWT | Crear cliente. 409 si `rnc_cedula` ya existe en la empresa. |
+| `GET` | `/api/v1/clientes/` | 200 | API-Key / JWT | Listar clientes de la empresa. |
+| `GET` | `/api/v1/clientes/{rnc_cedula}/` | 200 / 404 | API-Key / JWT | Detalle por RNC/Cédula. |
+| `PATCH` | `/api/v1/clientes/{rnc_cedula}/` | 200 | API-Key / JWT | Actualizar nombre, correo, teléfono, dirección. |
+| `DELETE` | `/api/v1/clientes/{rnc_cedula}/` | 204 | API-Key / JWT | Borrado lógico (`activo=false`). |
+
+### 11.9 Secuenciales
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/secuenciales/` | 201 | JWT | Crear secuencial (reservar rango e-NCF). |
+| `GET` | `/api/v1/secuenciales/` | 200 | JWT | Listar secuenciales. |
+| `GET` | `/api/v1/secuenciales/{id}/preview/` | 200 | JWT | Preview del próximo e-NCF disponible. |
+| `POST` | `/api/v1/secuenciales/{id}/bloquear/` | 200 | JWT | Bloquear secuencial (body: `motivo`). |
+| `POST` | `/api/v1/secuenciales/{id}/desbloquear/` | 200 | JWT | Desbloquear secuencial. |
+
+### 11.10 Pagos
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/pagos/` | 201 | JWT | Crear pago manual (`RENOVACION` o `ADICIONAL`). |
+| `GET` | `/api/v1/pagos/` | 200 | JWT | Listar pagos. Por defecto solo `PENDIENTE`. Filtro `?estado=`. |
+| `PATCH` | `/api/v1/pagos/{id}/actualizar_confirmacion/` | 201 | JWT | Confirmar pago (`metodo_pago`, `referencia`, `observaciones`). |
+| `POST` | `/api/v1/pagos/{id}/confirmar/` | 201 | JWT | **DEPRECATED.** Usar `actualizar_confirmacion`. |
+| `POST` | `/api/v1/pagos/{id}/rechazar/` | 200 | JWT | Rechazar pago (solo `PENDIENTE`). |
+| `GET` | `/api/v1/pagos/{id}/pdf/a4/` | 200 | JWT | Descargar comprobante PDF tamaño carta. |
+| `GET` | `/api/v1/pagos/{id}/pdf/80mm/` | 200 | JWT | Descargar comprobante PDF tamaño ticket. |
+| `GET` | `/api/v1/pagos/historial/` | 200 | JWT | Historial completo. Filtro `?empresa=<uuid>`. |
+
+### 11.11 Códigos de error comunes (endpoints actuales)
+
+| Status | Cuándo | Ejemplo |
+|--------|--------|---------|
+| 400 | Validación de campos fallida | `{"rnc_cedula": ["RNC/Cédula debe ser 9 (RNC) u 11 (Cédula) dígitos."]}` |
+| 400 | `referencia` faltante en pago no-EFECTIVO | `{"referencia": ["Referencia obligatoria si el método no es EFECTIVO."]}` |
+| 400 | Password actual incorrecta | `{"password_actual": ["Contraseña actual incorrecta."]}` |
+| 401 | Sin API-Key o JWT | `{"detail": "Authentication credentials were not provided."}` |
+| 403 | API-Key inválida, revocada o sin scope | `{"detail": "Invalid API key."}` |
+| 403 | API-Key sin IP permitida | `{"detail": "IP not allowed for this API key."}` |
+| 404 | Recurso no existe (otra empresa o ID inválido) | `{"detail": "Not found."}` |
+| 409 | Conflicto: cliente duplicado en la empresa | `{"rnc_cedula": ["Ya existe un cliente con este RNC/Cédula."]}` |
+| 500 | Error interno del servidor | `{"detail": "Internal server error."}` |

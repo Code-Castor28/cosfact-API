@@ -14,6 +14,79 @@
 
 ---
 
+## Hito 0.5 — POS-Ready Validator (PRERREQUISITO)
+
+> **Documento de detalle:** [`plan_secuenciales_refactor.md`](./plan_secuenciales_refactor.md)
+> **Documento hermano:** [`plan_webhook_snapshot.md`](./plan_webhook_snapshot.md) (Hito 0.6 — snapshot pesado por webhook)
+
+**Objetivo:** Permitir al POS validar antes de cada emisión sin descargar todo el payload. El POS cachea el snapshot pesado que recibe por webhook (Hito 0.6) y, antes de emitir, valida con un endpoint ligero que solo retorna `puede_emitir` + alertas.
+
+**Scope:**
+- Refactor de permisos en `SecuencialViewSet` (API-Key puede create/update secuenciales, SUPERADMIN hace el resto).
+- App nueva `apps/pos/` con `PosReadyView` (validator ligero).
+- `GET /api/v1/pos/ready/?tipo_ecf=31` retorna `{puede_emitir, alertas, validado_en}` o error 4xx con código específico.
+- Multi-tenant estricto: API-Key solo ve datos de su empresa.
+
+**Archivos clave:**
+- `apps/sequences/views.py` (refactor `get_permissions`)
+- Nueva `apps/pos/` (views, permissions, urls, tests)
+- `core/settings/base.py` (`INSTALLED_APPS`)
+- `core/urls.py` (include `apps.pos.urls`)
+
+**Tests:** ~29 nuevos (15 de `pos` + 12 de `sequences`).
+
+**Criterios de aceptación:** ver documento de detalle.
+
+**Por qué es prerrequisito:** Sin el validator, el POS no puede confirmar antes de cada emisión que la empresa sigue al día. El snapshot pesado por webhook (Hito 0.6) es complementario: da los datos, pero el validator ligero confirma en milisegundos antes de gastar un e-NCF.
+
+---
+
+## Hito 0.6 — Webhook `empresa.snapshot` (PRERREQUISITO)
+
+> **Documento de detalle:** [`plan_webhook_snapshot.md`](./plan_webhook_snapshot.md)
+> **Documento hermano:** [`plan_secuenciales_refactor.md`](./plan_secuenciales_refactor.md) (Hito 0.5 — validator ligero)
+
+**Objetivo:** Empujar al POS (vía webhook firmado) TODA la información estructural de la empresa, para que el POS la cachee localmente. Disparo diario a las 06:00 AM + en cambios importantes (suscripción, paquete, secuencial, certificado).
+
+**Scope:**
+- `armar_snapshot_empresa()` en `apps/empresas/services.py` (función pura, arma el payload pesado).
+- `dispatcher_webhook_minimo()` en `apps/empresas/services.py` (POST con HMAC-SHA256).
+- `enviar_snapshot_empresa()` y `enviar_snapshot_diario()` en `apps/empresas/tasks.py` (Celery).
+- 4 `post_save` signals en `apps/empresas/signals.py` (Suscripcion, **PaqueteComprobantes**, Secuencial, CertificadoDigital).
+- `CELERY_BEAT_SCHEDULE` con cron `0 6 * * *` (06:00 AM diario).
+- `apps/empresas/apps.py::ready()` conecta los signals.
+- **Nuevo:** campo `webhook_secret_cifrado` en `ApiKey` (cifrado Fernet), generado y mostrado una vez al crear la key. Se usa como HMAC secret (NO `api_key.token`, que no se guarda).
+
+**Archivos clave:**
+- Nuevo `apps/empresas/services.py` (snapshot + dispatcher)
+- Nuevo `apps/empresas/tasks.py` (Celery tasks)
+- Nuevo `apps/empresas/signals.py` (4 signals)
+- `apps/api_keys/models.py` (nuevo campo `webhook_secret_cifrado` + migration)
+- `apps/api_keys/serializers.py` y `views.py` (exponer `webhook_secret` solo en `create()`)
+- `apps/empresas/apps.py` (ready importa signals)
+- `core/settings/base.py` (CELERY_BEAT_SCHEDULE)
+- `docs/integracion.md` (nueva sección 13)
+
+**Triggers:**
+
+| Trigger | Cuándo | Task |
+|---------|--------|------|
+| Diario 06:00 | Celery Beat | `enviar_snapshot_diario` |
+| Cambio suscripción | `post_save` Suscripcion | `enviar_snapshot_empresa` |
+| Cambio paquete | `post_save` **PaqueteComprobantes** (de `apps.subscriptions.models`) | `enviar_snapshot_empresa` |
+| Cambio secuencial | `post_save` Secuencial | `enviar_snapshot_empresa` |
+| Cambio certificado | `post_save` CertificadoDigital | `enviar_snapshot_empresa` |
+
+**Tests:** ~20 nuevos (14 originales + 6 de `api_keys` para el secret).
+
+**Criterios de aceptación:** ver documento de detalle.
+
+**Por qué es prerrequisito:** El POS necesita el snapshot para mostrar al cajero "te quedan 50 comprobantes (5%)" o "el certificado vence en 25 días" sin tener que llamar a la API. El validator ligero (Hito 0.5) confirma antes de emitir, pero la UI proactiva requiere el snapshot.
+
+**Reemplazo futuro:** En Hito 4 (Bloque 3) el dispatcher mínimo se reemplaza por uno completo con `secret_cifrado` Fernet, reintentos exponenciales, DLQ y métricas.
+
+---
+
 ### BLOQUE 0: Serializers + Views de Comprobantes
 
 **Archivos:** `apps/comprobantes/serializers.py`, `views.py`, `urls.py`, `services.py`
