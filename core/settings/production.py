@@ -5,24 +5,22 @@ from .base import *
 # ------------------------------------------------------------------------------
 # CONFIGURACIÓN DE HOSTS (ALLOWED_HOSTS)
 # ------------------------------------------------------------------------------
-# Lee el string del .env, lo divide por comas y limpia espacios de cada host
-allowed_hosts_raw = os.getenv('ALLOWED_HOSTS', '').split(',')
+_hosts_value = env('ALLOWED_HOSTS')
+_hosts_str = str(_hosts_value) if _hosts_value else ''
 ALLOWED_HOSTS = [
-    host.strip()
-    for host in allowed_hosts_raw
-    if host.strip()
+    h.strip()
+    for h in _hosts_str.split(',') if h.strip()
 ]
 ALLOWED_HOSTS.append('testserver')
 
 # ------------------------------------------------------------------------------
 # CONFIGURACIÓN DE ORÍGENES DE CONFIANZA CSRF
 # ------------------------------------------------------------------------------
-# Lee el string del .env, lo divide por comas y limpia espacios de cada origen
-csrf_origins_raw = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+_origins_value = env('CSRF_TRUSTED_ORIGINS')
+_origins_str = str(_origins_value) if _origins_value else ''
 CSRF_TRUSTED_ORIGINS = [
-    origin.strip()
-    for origin in csrf_origins_raw
-    if origin.strip()
+    o.strip()
+    for o in _origins_str.split(',') if o.strip()
 ]
 
 DATABASES = {
@@ -39,6 +37,9 @@ DATABASES = {
         },
     }
 }
+
+# En producción DEBUG siempre es False
+DEBUG = False
 
 # ─── HTTPS y cookies ──────────────────────────────────────────────────────────
 SECURE_SSL_REDIRECT = True
