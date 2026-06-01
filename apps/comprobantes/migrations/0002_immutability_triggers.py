@@ -107,30 +107,32 @@ DROP FUNCTION IF EXISTS prevent_dgiilog_update();
 """
 
 
+def _run_if_postgres(sql, reverse_sql):
+    """Ejecuta SQL solo si el motor de DB es PostgreSQL."""
+    from django.db import connection
+
+    def forward(apps, schema_editor):
+        if connection.vendor == "postgresql":
+            schema_editor.execute(sql)
+
+    def backward(apps, schema_editor):
+        if connection.vendor == "postgresql":
+            schema_editor.execute(reverse_sql)
+
+    return migrations.RunPython(forward, backward)
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        # Ajustar según las migraciones existentes
         ("comprobantes", "0001_initial"),
         ("audit", "0001_initial"),
         ("dgii", "0001_initial"),
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=SQL_TRIGGER_COMPROBANTE,
-            reverse_sql=SQL_DROP_TRIGGER_COMPROBANTE,
-        ),
-        migrations.RunSQL(
-            sql=SQL_TRIGGER_DETALLE,
-            reverse_sql=SQL_DROP_TRIGGER_DETALLE,
-        ),
-        migrations.RunSQL(
-            sql=SQL_TRIGGER_AUDIT,
-            reverse_sql=SQL_DROP_TRIGGER_AUDIT,
-        ),
-        migrations.RunSQL(
-            sql=SQL_TRIGGER_DGIILOG,
-            reverse_sql=SQL_DROP_TRIGGER_DGIILOG,
-        ),
+        _run_if_postgres(SQL_TRIGGER_COMPROBANTE, SQL_DROP_TRIGGER_COMPROBANTE),
+        _run_if_postgres(SQL_TRIGGER_DETALLE, SQL_DROP_TRIGGER_DETALLE),
+        _run_if_postgres(SQL_TRIGGER_AUDIT, SQL_DROP_TRIGGER_AUDIT),
+        _run_if_postgres(SQL_TRIGGER_DGIILOG, SQL_DROP_TRIGGER_DGIILOG),
     ]

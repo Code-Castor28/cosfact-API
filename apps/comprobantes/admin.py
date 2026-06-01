@@ -19,6 +19,35 @@ class ComprobanteAdmin(admin.ModelAdmin):
     search_fields = ['encf', 'empresa__rnc', 'rnc_comprador']
     readonly_fields = [
         'id', 'encf', 'rnc_emisor', 'codigo_seguridad_dgii',
-        'track_id_dgii', 'xml_hash', 'creado_at', 'actualizado_at'
+        'track_id_dgii', 'xml_hash', 'subtotal', 'descuento',
+        'creado_at', 'actualizado_at',
     ]
+    fieldsets = (
+        (None, {
+            'fields': ('empresa', 'tipo_ecf', 'encf', 'estado')
+        }),
+        ('Receptor', {
+            'fields': ('rnc_comprador', 'cedula_comprador',
+                       'razon_social_comprador', 'direccion_comprador', 'cliente')
+        }),
+        ('Montos', {
+            'fields': ('subtotal', 'descuento', 'monto_gravado',
+                       'monto_exento', 'monto_itbis', 'monto_total')
+        }),
+        ('Notas E33/E34', {
+            'fields': ('ncf_modificado', 'codigo_modificacion',
+                       'razon_modificacion'),
+            'classes': ('collapse',),
+        }),
+        ('DGII', {
+            'fields': ('track_id_dgii', 'codigo_seguridad_dgii',
+                       'xml_path', 'xml_hash', 'xml_version'),
+        }),
+        ('Metadata', {
+            'fields': ('idempotency_key', 'paquete', 'certificado_usado',
+                       'observaciones', 'intentos_envio', 'ultimo_error',
+                       'fecha_emision', 'fecha_vencimiento_pago', 'condicion_pago',
+                       'creado_at', 'actualizado_at'),
+        }),
+    )
     inlines = [DetalleInline, EventoInline]

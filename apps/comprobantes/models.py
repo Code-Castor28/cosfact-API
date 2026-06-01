@@ -20,15 +20,15 @@ ESTADOS:
                     CONTINGENCIA (reintento automático cuando DGII falla)
 """
 import uuid
+from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from sequences.models import TIPOS_ECF, TIPO_ECF_CHOICES
 
-
-# Tipos que requieren comprobante de referencia (nota de crédito/débito)
-TIPOS_REQUIEREN_REFERENCIA = {33, 34, 41}
+# Tipos e-CF habilitados en Fase 1 (MVP)
+TIPOS_FASE_1 = {31, 32, 33, 34, 41}
 
 
 class Comprobante(models.Model):
@@ -100,7 +100,7 @@ class Comprobante(models.Model):
     rnc_emisor = models.CharField(max_length=11)
 
     # Receptor
-    rnc_comprador = models.CharField(max_length=11, blank=True)
+    rnc_comprador = models.CharField(max_length=11, blank=True, null=True)
     cedula_comprador = models.CharField(max_length=11, blank=True)
     razon_social_comprador = models.CharField(max_length=255, blank=True)
 
@@ -126,19 +126,61 @@ class Comprobante(models.Model):
     impresion_url = models.URLField(blank=True)
     qr_data = models.TextField(blank=True, help_text="Datos del QR para impresión.")
 
-    # Referencia (obligatorio para notas de crédito/débito)
+    # Referencia (FK opcional — solo analítica, no obligatorio)
     comprobante_referencia = models.ForeignKey(
         "self",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="notas",
     )
-    encf_referencia = models.CharField(
+    ncf_modificado = models.CharField(
         max_length=13,
         blank=True,
-        help_text="e-NCF del comprobante que se modifica con esta nota.",
+        help_text="e-NCF del comprobante que se modifica con esta nota (E33/E34).",
     )
+
+    # --- Nuevos campos planos ---
+    direccion_comprador = models.CharField(max_length=255, blank=True)
+
+    # FK a catálogo de clientes (analítica)
+    cliente = models.ForeignKey(
+        "clientes.Cliente",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="comprobantes",
+    )
+
+    # Montos
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    descuento = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    # Notas / Observaciones
+    observaciones = models.TextField(blank=True)
+
+    # Certificado usado para firmar
+    certificado_usado = models.ForeignKey(
+        "empresas.CertificadoDigital",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="comprobantes",
+    )
+
+    # Campos para Notas E33/E34
+    codigo_modificacion = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        choices=[
+            (1, "Anulación"),
+            (2, "Texto"),
+            (3, "Montos"),
+            (4, "Contingencia"),
+            (5, "Referencia E32"),
+        ],
+    )
+    razon_modificacion = models.CharField(max_length=90, blank=True)
 
     # XML — path con namespacing por empresa para evitar colisiones
     # Formato: {empresa_uuid}/ecf/{año}/{encf}.xml
@@ -207,24 +249,63 @@ class Comprobante(models.Model):
     def clean(self):
         errores = {}
 
-        if self.tipo_ecf not in TIPOS_ECF:
-            errores["tipo_ecf"] = f"Tipo e-CF inválido: {self.tipo_ecf}."
+        # 1. Rechazar tipos fuera de Fase 1 (MVP)
+        if self.tipo_ecf not in TIPOS_FASE_1:
+            raise ValidationError(
+                {"tipo_ecf": f"Tipo e-CF {self.tipo_ecf} no soportado en Fase 1. "
+                             f"Tipos válidos: 31, 32, 33, 34, 41."}
+            )
 
-        # Notas de crédito/débito requieren referencia
-        if self.tipo_ecf in TIPOS_REQUIEREN_REFERENCIA:
-            if not self.encf_referencia and not self.comprobante_referencia_id:
-                errores["encf_referencia"] = (
-                    f"El tipo {self.tipo_ecf} requiere un comprobante de referencia."
-                )
+        # 2. E31 (Crédito Fiscal): RNC + Razón Social obligatorios
+        if self.tipo_ecf == 31:
+            if not self.rnc_comprador:
+                errores["rnc_comprador"] = "E31 requiere RNC/Cédula del comprador."
+            if not self.razon_social_comprador:
+                errores["razon_social_comprador"] = "E31 requiere Razón Social del comprador."
 
-        # Validar montos básicos
-        if self.monto_total < 0:
-            errores["monto_total"] = "El monto total no puede ser negativo."
+        # 3. E32 (Consumo): Regla del umbral RD$250,000
+        if self.tipo_ecf == 32:
+            monto_total = self.monto_total or Decimal("0.00")
+            if monto_total >= Decimal("250000.00"):
+                if not self.rnc_comprador:
+                    errores["rnc_comprador"] = "E32 ≥ RD$250,000 requiere RNC/Cédula del comprador."
+            if not self.rnc_comprador:
+                self.razon_social_comprador = "CONSUMIDOR FINAL"
 
+        # 4. E33/E34 (Notas): Validación de campos de referencia
+        if self.tipo_ecf in (33, 34):
+            if not self.ncf_modificado:
+                errores["ncf_modificado"] = f"E{self.tipo_ecf} requiere el e-NCF del comprobante modificado."
+            if not self.codigo_modificacion:
+                errores["codigo_modificacion"] = f"E{self.tipo_ecf} requiere código de modificación (1-5)."
+            if not self.razon_modificacion:
+                errores["razon_modificacion"] = f"E{self.tipo_ecf} requiere razón de la modificación."
+
+            if self.ncf_modificado:
+                original = Comprobante.objects.filter(
+                    encf=self.ncf_modificado,
+                    estado=Comprobante.ESTADO_ACEPTADO,
+                ).first()
+                if not original:
+                    errores["ncf_modificado"] = (
+                        f"El e-NCF {self.ncf_modificado} no existe o no está ACEPTADO."
+                    )
+                else:
+                    if self.rnc_comprador and original.rnc_comprador:
+                        if self.rnc_comprador != original.rnc_comprador:
+                            errores["rnc_comprador"] = (
+                                "El RCN del comprador de la nota debe coincidir "
+                                "con el RNC de la factura original."
+                            )
+
+            if self.razon_modificacion:
+                self.razon_modificacion = self.razon_modificacion[:90]
+
+        # 5. Validación de consistencia de montos
         calculado = self.monto_gravado + self.monto_exento + self.monto_itbis
-        if abs(float(calculado) - float(self.monto_total)) > 0.01:
+        if self.monto_total and abs(calculado - self.monto_total) > Decimal("0.01"):
             errores["monto_total"] = (
-                f"El monto total ({self.monto_total}) no coincide con "
+                f"Monto total ({self.monto_total}) no coincide con "
                 f"gravado + exento + ITBIS ({calculado})."
             )
 
@@ -239,7 +320,7 @@ class Comprobante(models.Model):
 
     @property
     def puede_anularse(self):
-        return self.estado == self.ESTADO_ACEPTADO
+        return self.estado == self.ESTADO_BORRADOR
 
     @property
     def puede_reintentarse(self):
