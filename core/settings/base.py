@@ -16,10 +16,6 @@ import logging
 from pathlib import Path
 import os
 import environ
-import sentry_sdk
-from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.integrations.celery import CeleryIntegration
-from sentry_sdk.integrations.logging import LoggingIntegration
 
 env = environ.Env(
     DEBUG=(bool, False),
