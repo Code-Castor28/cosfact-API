@@ -23,15 +23,6 @@ else:
     CSRF_TRUSTED_ORIGINS = [o.strip() for o in str(_origins_raw).split(',') if o.strip()]
 ALLOWED_HOSTS.append('testserver')
 
-# ------------------------------------------------------------------------------
-# CONFIGURACIÓN DE ORÍGENES DE CONFIANZA CSRF
-# ------------------------------------------------------------------------------
-_origins_value = env('CSRF_TRUSTED_ORIGINS')
-_origins_str = str(_origins_value) if _origins_value else ''
-CSRF_TRUSTED_ORIGINS = [
-    o.strip()
-    for o in _origins_str.split(',') if o.strip()
-]
 
 DATABASES = {
     'default': {
@@ -48,8 +39,6 @@ DATABASES = {
     }
 }
 
-# En producción DEBUG siempre es False
-DEBUG = False
 
 # ─── HTTPS y cookies ──────────────────────────────────────────────────────────
 SECURE_SSL_REDIRECT = True

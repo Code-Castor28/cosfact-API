@@ -43,8 +43,9 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 # SECURITY WARNING: keep the secret key used in production secret!
 # SECRET_KEY = 'django-insecure-nu7ly7d)z3a*10c-(6$9$9+fb6up)jky*9_%2^oxj0&uxjgd3m'
 SECRET_KEY = env('SECRET_KEY')
+
+DEBUG= env('DEBUG')
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env('DEBUG')
 
 DGII_CERT_PATH = env("DGII_CERT_PATH")
 DGII_CERT_PASSWORD = env("DGII_CERT_PASSWORD")
