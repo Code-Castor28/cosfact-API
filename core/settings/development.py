@@ -1,7 +1,7 @@
 import logging
 from .base import *
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['samboxderejfact.derejsoft.com', '148.103.88.28', '192.168.100.90', '127.0.0.1', 'localhost']
 CSRF_TRUSTED_ORIGINS=["https://samboxderejfact.derejsoft.com", "http://samboxderejfact.derejsoft.com", "https://derejpanel.derejsoft.com", "http://derejpanel.derejsoft.com", "http://127.0.0.1:5500"]
