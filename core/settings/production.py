@@ -5,16 +5,22 @@ from .base import *
 # ------------------------------------------------------------------------------
 # CONFIGURACIÓN DE HOSTS (ALLOWED_HOSTS)
 # ------------------------------------------------------------------------------
-import os as _os
-_hosts_raw = _os.environ.get('ALLOWED_HOSTS', '')
-ALLOWED_HOSTS = [h.strip() for h in _hosts_raw.split(',') if h.strip()]
+# env() lee del .env via django-environ; pyright no infiere bien el tipo
+_hosts_raw = env('ALLOWED_HOSTS')  # type: ignore[arg-type]
+if isinstance(_hosts_raw, list):
+    ALLOWED_HOSTS = [str(h).strip() for h in _hosts_raw if str(h).strip()]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in str(_hosts_raw).split(',') if h.strip()]
 ALLOWED_HOSTS.append('testserver')
 
 # ------------------------------------------------------------------------------
 # CONFIGURACIÓN DE ORÍGENES DE CONFIANZA CSRF
 # ------------------------------------------------------------------------------
-_origins_raw = _os.environ.get('CSRF_TRUSTED_ORIGINS', '')
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in _origins_raw.split(',') if o.strip()]
+_origins_raw = env('CSRF_TRUSTED_ORIGINS')  # type: ignore[arg-type]
+if isinstance(_origins_raw, list):
+    CSRF_TRUSTED_ORIGINS = [str(o).strip() for o in _origins_raw if str(o).strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in str(_origins_raw).split(',') if o.strip()]
 ALLOWED_HOSTS.append('testserver')
 
 # ------------------------------------------------------------------------------
