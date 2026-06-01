@@ -5,6 +5,7 @@
   "typeCheckingMode": "basic",
   "reportMissingModuleSource": false,
   "reportMissingImports": false,
+  "reportDeprecated": "none",
   "useLibraryCodeForTypes": true,
   "ignore": [
     "venv/**"
