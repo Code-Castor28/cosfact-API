@@ -21,7 +21,9 @@ if isinstance(_origins_raw, list):
     CSRF_TRUSTED_ORIGINS = [str(o).strip() for o in _origins_raw if str(o).strip()]
 else:
     CSRF_TRUSTED_ORIGINS = [o.strip() for o in str(_origins_raw).split(',') if o.strip()]
-ALLOWED_HOSTS.append('testserver')
+
+# En producción DEBUG siempre es False
+DEBUG = False
 
 
 DATABASES = {
