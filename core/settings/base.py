@@ -232,25 +232,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# ─── Sentry (Error tracking & logging) ────────────────────────────────────────
+# ─── Sentry config (init se hace en production.py después de todos los settings) ─
 ENVIRONMENT: str = env.str('ENVIRONMENT', default='development')
 APP_VERSION: str = env.str('APP_VERSION', default='unknown')
 _SENTRY_DSN_RAW: str = env.str('SENTRY_DSN', default='')
 SENTRY_DSN: str | None = _SENTRY_DSN_RAW or None
-
-if SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        integrations=[
-            DjangoIntegration(),
-            CeleryIntegration(),
-            LoggingIntegration(
-                level=logging.INFO,        # Captura logs >= INFO
-                event_level=logging.ERROR  # Envía eventos ERROR a Sentry
-            ),
-        ],
-        traces_sample_rate=0.1,  # 10% de traces para performance monitoring
-        send_default_pii=True,   # Incluir datos de usuario (email, IP, etc)
-        environment=ENVIRONMENT,
-        release=APP_VERSION,
-    )

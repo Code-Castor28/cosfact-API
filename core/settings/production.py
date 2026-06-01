@@ -96,3 +96,21 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# ─── Sentry init (AL FINAL, después de todos los settings) ─────────────────────
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+            LoggingIntegration(
+                level=logging.INFO,
+                event_level=logging.ERROR,
+            ),
+        ],
+        traces_sample_rate=0.1,
+        send_default_pii=True,
+        environment=ENVIRONMENT,
+        release=APP_VERSION,
+    )
