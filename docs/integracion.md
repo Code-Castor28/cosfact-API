@@ -21,6 +21,8 @@ Rutas disponibles bajo `/api/v1/`:
 - `api-keys/`
 - `api-keys/{id}/revocar/`
 - `api-keys/{id}/rotar/`
+- `clientes/`
+- `clientes/{rnc_cedula}/`
 - `secuenciales/`
 - `secuenciales/{id}/preview/`
 - `secuenciales/{id}/bloquear/`
@@ -35,9 +37,9 @@ Rutas disponibles bajo `/api/v1/`:
 
 Rutas que hoy estan vacias o no implementadas:
 
-- `comprobantes/`
-- `dgii/`
-- `webhooks/`
+- `comprobantes/` (modelos listos, vistas pendientes)
+- `dgii/` (servicios listos, vistas pendientes)
+- `webhooks/` (modelos listos, vistas pendientes)
 
 Si quieres probar en Postman, concentrate en las rutas de arriba. Las otras no te van a responder porque aun no tienen vistas.
 
@@ -343,7 +345,74 @@ Content-Type: application/json
 }
 ```
 
-### 4.9 Crear secuencial
+### 4.9 Clientes
+
+Cliente se autentica vía API-Key o JWT. El `rnc_cedula` debe ser único por empresa. Si el cliente ya existe, el POST devuelve 409.
+
+```http
+GET /api/v1/clientes/
+Authorization: Api-Key <token_completo>
+```
+
+```http
+POST /api/v1/clientes/
+Authorization: Api-Key <token_completo>
+Content-Type: application/json
+```
+
+```json
+{
+  "rnc_cedula": "00123456789",
+  "nombre": "Juan Pérez",
+  "correo": "juan@ejemplo.com",
+  "telefono": "8095551234",
+  "direccion": "Calle Principal 123"
+}
+```
+
+Respuesta exitosa:
+
+```json
+{
+  "id": "<uuid>",
+  "empresa": "<empresa_uuid>",
+  "rnc_cedula": "00123456789",
+  "nombre": "Juan Pérez",
+  "correo": "juan@ejemplo.com",
+  "telefono": "8095551234",
+  "direccion": "Calle Principal 123",
+  "activo": true,
+  "creado_at": "2026-05-31T00:00:00Z",
+  "actualizado_at": "2026-05-31T00:00:00Z"
+}
+```
+
+```http
+GET /api/v1/clientes/{rnc_cedula}/
+Authorization: Api-Key <token_completo>
+```
+
+```http
+PATCH /api/v1/clientes/{rnc_cedula}/
+Authorization: Api-Key <token_completo>
+Content-Type: application/json
+```
+
+```json
+{
+  "nombre": "Juan Pérez Actualizado",
+  "telefono": "8095555678"
+}
+```
+
+```http
+DELETE /api/v1/clientes/{rnc_cedula}/
+Authorization: Api-Key <token_completo>
+```
+
+El DELETE es lógico (marca `activo=false`). Respuesta 204 sin body.
+
+### 4.10 Crear secuencial
 
 ```http
 POST /api/v1/secuenciales/
@@ -391,7 +460,7 @@ POST /api/v1/secuenciales/{id}/desbloquear/
 Authorization: Bearer <jwt_access>
 ```
 
-### 4.10 Pagos
+### 4.11 Pagos
 
 #### Crear pago manual
 
@@ -618,6 +687,18 @@ GET /api/v1/empresas/{id}/comprobantes/
 Authorization: Bearer <jwt_access>
 ```
 
+### Clientes por empresa
+
+```http
+GET /api/v1/clientes/
+Authorization: Api-Key <token_completo>
+```
+
+```http
+GET /api/v1/clientes/{rnc_cedula}/
+Authorization: Api-Key <token_completo>
+```
+
 ### Listados generales
 
 ```http
@@ -625,6 +706,7 @@ GET /api/v1/planes/
 GET /api/v1/suscripciones/
 GET /api/v1/paquetes/
 GET /api/v1/api-keys/
+GET /api/v1/clientes/
 GET /api/v1/secuenciales/
 GET /api/v1/pagos/
 ```
@@ -786,6 +868,7 @@ Cada pago confirmado tiene dos formatos de comprobante:
 - Paquete: `empresa`, `suscripcion`, `plan`, `total_comprobantes`, `comprobantes_usados`, `estado`, `origen`, `fecha_vencimiento`
 - API Key: `empresa`, `nombre`, `scopes`, `allowed_ips`, `rate_limit_cantidad`, `rate_limit_ventana`, `expira_at`, `activa`
 - Secuencial: `empresa`, `tipo_ecf`, `ultimo_numero`, `minimo_asignado`, `maximo_asignado`, `bloqueado`, `motivo_bloqueo`
+- Cliente: `rnc_cedula`, `nombre`, `correo` (opcional), `telefono` (opcional), `direccion` (opcional)
 - **[POST] Pago**: `empresa`, `suscripcion`, `plan`, `monto` (opcional), `moneda`, `tipo_pago`, `metodo_pago`, `referencia`, `observaciones`
 - **[PATCH] Confirmar Pago**: `metodo_pago`, `referencia` (si no es EFECTIVO), `observaciones` (opcional)
 - Pago (respuesta): `empresa`, `suscripcion`, `plan`, `monto`, `moneda`, `tipo_pago`, `metodo_pago`, `referencia`, `fecha_pago`, `observaciones`
