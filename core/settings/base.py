@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'webhooks',
     'audit',
     'clientes',
+    'notificaciones',
     'rest_framework_simplejwt',
     'django_celery_beat',
 ]
@@ -227,6 +228,15 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+
+# ─── Email ────────────────────────────────────────────────────────────────────
+EMAIL_BACKEND = env.str('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env.str('EMAIL_HOST', default='')
+EMAIL_PORT = env.int('EMAIL_PORT', default=587)
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+EMAIL_HOST_USER = env.str('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = env.str('EMAIL_HOST_PASSWORD', default='')
+DEFAULT_FROM_EMAIL = env.str('DEFAULT_FROM_EMAIL', default='noreply@derejsoft.com')
 
 # ─── Sentry config (init se hace en production.py después de todos los settings) ─
 ENVIRONMENT: str = env.str('ENVIRONMENT', default='development')
