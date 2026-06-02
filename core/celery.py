@@ -26,4 +26,28 @@ app.conf.beat_schedule = {
             'expires': 3600,
         }
     },
+    'reintentar-contingencia': {
+        'task': 'dgii.reintentar_contingencia',
+        'schedule': crontab(hour=2, minute=0),  # 2:00 AM diario
+        'options': {
+            'queue': 'default',
+            'expires': 3600,
+        }
+    },
+    'alertar-balance-bajo': {
+        'task': 'notificaciones.alertar_balance_bajo',
+        'schedule': crontab(hour=6, minute=0),  # 6:00 AM diario
+        'options': {
+            'queue': 'default',
+            'expires': 3600,
+        }
+    },
+    'alertar-certificado-vencimiento': {
+        'task': 'notificaciones.alertar_certificado_vencimiento',
+        'schedule': crontab(hour=6, minute=30),  # 6:30 AM diario
+        'options': {
+            'queue': 'default',
+            'expires': 3600,
+        }
+    },
 }

@@ -164,6 +164,23 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
         _crear_evento(comprobante, estado_anterior,
                       comprobante.estado, "Envio DGII completado")
 
+    from webhooks.services import disparar_webhook
+    if estado_final in (
+        Comprobante.ESTADO_ACEPTADO,
+        Comprobante.ESTADO_RECHAZADO,
+    ):
+        disparar_webhook(
+            comprobante.empresa,
+            f"comprobante.{estado_final.lower()}",
+            {
+                "comprobante_id": str(comprobante.id),
+                "encf": comprobante.encf,
+                "estado": estado_final,
+                "rnc": comprobante.empresa.rnc,
+                "fecha_emision": comprobante.fecha_emision.isoformat(),
+            },
+        )
+
     return comprobante
 
 
@@ -212,6 +229,24 @@ def consultar_estado(comprobante_id: str) -> Comprobante:
         comprobante.save(update_fields=["estado", "actualizado_at"])
         _crear_evento(comprobante, estado_anterior,
                       comprobante.estado, "Consulta estado DGII")
+
+    from webhooks.services import disparar_webhook
+    if estado in (
+        Comprobante.ESTADO_ACEPTADO,
+        Comprobante.ESTADO_RECHAZADO,
+    ):
+        disparar_webhook(
+            comprobante.empresa,
+            f"comprobante.{estado.lower()}",
+            {
+                "comprobante_id": str(comprobante.id),
+                "encf": comprobante.encf,
+                "estado": estado,
+                "rnc": comprobante.empresa.rnc,
+                "fecha_emision": comprobante.fecha_emision.isoformat(),
+            },
+        )
+
     return comprobante
 
 
