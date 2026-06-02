@@ -15,6 +15,7 @@ import hashlib
 import hmac
 import json
 import uuid
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.conf import settings
 
@@ -142,9 +143,8 @@ class AuditLog(models.Model):
         NOTA: También hay un trigger en la migración para bloquear UPDATE a nivel DB.
         """
         if self.pk:
-            raise ValueError(
-                "Los registros de auditoría no pueden modificarse. "
-                "Son inmutables por diseño."
+            raise ValidationError(
+                "Los registros de auditoría no pueden modificarse."
             )
 
         # Calcular HMAC antes de guardar
@@ -162,6 +162,6 @@ class AuditLog(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValueError(
+        raise ValidationError(
             "Los registros de auditoría no pueden eliminarse."
         )

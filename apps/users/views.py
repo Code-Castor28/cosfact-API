@@ -1,11 +1,16 @@
+import logging
+
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from django.conf import settings
 from django.utils.crypto import get_random_string
 
 from .models import Usuario
 from .serializers import UsuarioSerializer, CambiarPasswordSerializer
 from .permissions import IsSuperAdmin
+
+logger = logging.getLogger(__name__)
 
 
 class UsuarioViewSet(viewsets.ModelViewSet):
@@ -104,10 +109,11 @@ class RecoverPasswordView(APIView):
             user.set_password(temp_password)
             user.save()
 
+            if settings.DEBUG:
+                logger.debug("[DEV ONLY] temp_password: %s", temp_password)
+
             return Response({
-                "mensaje": "Recuperación simulada. En el futuro esto enviará un email.",
-                "email": email,
-                "temp_password": temp_password,
+                "mensaje": "Si el correo existe, recibirás instrucciones.",
             })
 
         except Usuario.DoesNotExist:

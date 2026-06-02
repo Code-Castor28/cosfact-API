@@ -64,8 +64,8 @@ class TenantMiddleware(MiddlewareMixin):
 
         # Caso 2: ApiKey en el header Authorization
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
+        if auth_header.startswith("Api-Key "):
+            token = auth_header[8:]
             from api_keys.models import ApiKey
             api_key = ApiKey.verificar(token)
             if api_key:

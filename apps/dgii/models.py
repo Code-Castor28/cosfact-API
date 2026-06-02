@@ -12,6 +12,7 @@ SEGURIDAD:
 - xml_version registra el schema usado para cada operación.
 """
 import uuid
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -93,10 +94,10 @@ class DGIILog(models.Model):
     def save(self, *args, **kwargs):
         """Los logs son append-only. No se modifican."""
         if self.pk:
-            raise ValueError(
-                "Los logs DGII no pueden modificarse. Son registros de auditoría."
+            raise ValidationError(
+                "Los registros de auditoría no pueden modificarse."
             )
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        raise ValueError("Los logs DGII no pueden eliminarse. Retención legal 10 años.")
+        raise ValidationError("Los registros de auditoría no pueden eliminarse. Retención legal 10 años.")
