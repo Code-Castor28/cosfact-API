@@ -74,6 +74,9 @@ class Empresa(models.Model):
     certificado_hash = models.CharField(max_length=64, blank=True)
     certificado_vence_at = models.DateField(null=True, blank=True)
 
+    # Onboarding — deuda pendiente impide nuevas emisiones
+    onboarding_bloqueado = models.BooleanField(default=False)
+
     # Soft delete — nunca borrar por cumplimiento legal 10 años
     deleted_at = models.DateTimeField(null=True, blank=True)
 

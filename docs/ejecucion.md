@@ -9,20 +9,20 @@
 
 | Fase | Avance |
 |:-----|:------:|
-| Fase 0 — Seguridad y Estabilidad | ⬜ 0/6 |
-| Fase 1a — Infraestructura (Scopes + Onboarding) | ⬜ 0/2 |
-| Fase 1b — Comprobantes CRUD | ⬜ 0/4 |
-| Fase 1c — Parches de Validación + Blindaje | ⬜ 0/4 |
+| Fase 0 — Seguridad y Estabilidad | ✅ 6/6 |
+| Fase 1a — Infraestructura (Scopes + Onboarding) | ✅ 2/2 |
+| Fase 1b — Comprobantes CRUD | ✅ 4/4 |
+| Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
 | Fase 2 — Webhooks y Notificaciones | ⬜ 0/9 |
 | Fase 3 — Deuda Técnica | ⬜ 0/6 |
-| **Total** | **⬜ 0/31** |
+| **Total** | **⬜ 16/31** |
 
 ---
 
-## Fase 0 — Seguridad y Estabilidad (0/6)
+## Fase 0 — Seguridad y Estabilidad (6/6)
 > **Objetivo:** Dejar el sistema existente sin bugs que rompan acceso, expongan datos o bloqueen operaciones. Nada nuevo se construye aquí.
 
-- [ ] 0.1 Permisos de Pagos (`is_superuser` → `rol` + fix de import `Usuario` integrado aquí)
+- [x] 0.1 Permisos de Pagos (`is_superuser` → `rol` + fix de import `Usuario` integrado aquí)
 
   **Problema:** `pagos/permissions.py` usa `request.user.is_superuser` (campo Django base), que siempre es `False` en el modelo custom `Usuario`. Ningún SuperAdmin puede confirmar pagos.
 
@@ -38,7 +38,7 @@
   )
   ```
 
-- [ ] 0.2 `ClienteViewSet` con JWT e inyección de `_get_empresa()`
+- [x] 0.2 `ClienteViewSet` con JWT e inyección de `_get_empresa()`
 
   **Problema:** `get_queryset()` filtra `empresa=request.user`. Con JWT, `request.user` es `Usuario`, no `Empresa`. El panel admin recibe resultados vacíos o errores 500.
 
@@ -55,7 +55,7 @@
   ```
   Aplicar el mismo patrón en `perform_create()` y `perform_update()`.
 
-- [ ] 0.3 `RecoverPasswordView` (eliminar `temp_password` de la respuesta HTTP)
+- [x] 0.3 `RecoverPasswordView` (eliminar `temp_password` de la respuesta HTTP)
 
   **Problema:** La contraseña temporal viaja en texto plano en la respuesta HTTP. Riesgo de exposición en logs de proxy, CDN y navegador.
 
@@ -68,7 +68,7 @@
   return Response({"mensaje": "Si el correo existe, recibirás instrucciones."})
   ```
 
-- [ ] 0.4 `ValueError` → `ValidationError` en modelos append-only de audit/dgii
+- [x] 0.4 `ValueError` → `ValidationError` en modelos append-only de audit/dgii
 
   **Problema:** `DGIILog.save()` y `AuditLog.save()` lanzan `ValueError` (→ HTTP 500). `Comprobante.save()` lanza `ValidationError` (→ HTTP 400). Ambos deben ser consistentes.
 
@@ -78,7 +78,7 @@
   raise ValidationError("Los registros de auditoría no pueden modificarse.")
   ```
 
-- [ ] 0.5 Activar middleware de auditoría + corregir detección de header `Api-Key`
+- [x] 0.5 Activar middleware de auditoría + corregir detección de header `Api-Key`
 
   **Problema:** `audit/middleware.py` está comentado en `core/settings/base.py` líneas 90-91. Sin él, ninguna acción crítica queda registrada. Además, el `TenantMiddleware` busca `Bearer` para identificar API Keys, pero `ApiKeyAuthentication` usa `Api-Key`.
 
@@ -93,7 +93,7 @@
       # lógica para JWT
   ```
 
-- [ ] 0.6 Rotar credenciales expuestas en el `.env` local hacia variables de entorno seguras
+- [x] 0.6 Rotar credenciales expuestas en el `.env` local hacia variables de entorno seguras
 
   **Problema:** `SECRET_KEY`, `DB_PASSWORD`, `FERNET_KEY`, `SENTRY_DSN` y `DGII_CERT_PASSWORD` están en disco como texto plano. Si bien no están versionados (`.gitignore`), cualquier acceso al servidor los expone.
 
@@ -106,10 +106,10 @@
 
 ---
 
-## Fase 1a — Infraestructura (Scopes + Onboarding) (0/2)
+## Fase 1a — Infraestructura (Scopes + Onboarding) (2/2)
 > **Objetivo:** Establecer las guardas de seguridad y el onboarding antes de construir comprobantes. Sin scopes, cualquier API Key accessa todo. Sin onboarding, no hay secuencias asignadas.
 
-- [ ] 1.1 Validación de Scopes en `ApiKeyAuthentication` (implementación con regex, no rutas fijas)
+- [x] 1.1 Validación de Scopes en `ApiKeyAuthentication` (implementación con regex, no rutas fijas)
 
   **Por qué primero:** Todo lo que se construya en comprobantes y onboarding depende de que los scopes funcionen. Si no se validan, cualquier API Key puede llamar a cualquier endpoint.
 
@@ -146,7 +146,7 @@
   **Renombrar scope en datos:**
   - Documentar que `comprobantes:emision` (doc) = `comprobantes:crear` (código). Usar `comprobantes:crear` como nombre canónico.
 
-- [ ] 1.2 Endpoint consolidado de Onboarding `POST /api/v1/secuencias/` (SaaS Guard)
+- [x] 1.2 Endpoint consolidado de Onboarding `POST /api/v1/secuencias/` (SaaS Guard)
 
   **Scope requerido:** `empresa:onboarding`
 
@@ -204,10 +204,10 @@
 
 ---
 
-## Fase 1b — Comprobantes CRUD (0/4)
+## Fase 1b — Comprobantes CRUD (4/4)
 > **Objetivo:** Construir la app `comprobantes` completa. Al finalizar, el POS puede emitir su primer e-CF real.
 
-- [ ] 1.3 Serializers (motor matemático ROUND_HALF_UP + mapeo `ItemComprobante` → `ComprobanteDetalle`)
+- [x] 1.3 Serializers (motor matemático ROUND_HALF_UP + mapeo `ItemComprobante` → `ComprobanteDetalle`)
 
   **Archivo:** `apps/comprobantes/serializers.py`
 
@@ -374,7 +374,7 @@
               )
   ```
 
-- [ ] 1.4 Service + ViewSet (flujo POS: guardar → reservar e-NCF → mutar a `PENDIENTE` en el mismo bloque atómico)
+- [x] 1.4 Service + ViewSet (flujo POS: guardar → reservar e-NCF → mutar a `PENDIENTE` en el mismo bloque atómico)
 
   **Archivo:** `apps/comprobantes/services.py`
 
@@ -433,13 +433,13 @@
           # ... actualización parcial normal
   ```
 
-- [ ] 1.5 Conectar consumo de balance del paquete al flujo síncrono (`consumir_comprobante()` + `revertir_consumo()`)
+- [x] 1.5 Conectar consumo de balance del paquete al flujo síncrono (`consumir_comprobante()` + `revertir_consumo()`)
 
   **Problema del hallazgo 5.6:** `consumir_comprobante()` existe en `PaqueteComprobantes` pero nunca se llama.
 
   **Corrección:** Llamarlo explícitamente en `ComprobantesService.create_comprobante()` paso 1 (ver 1.4 arriba). Incluir `revertir_consumo()` en el bloque `except` si la firma falla para no quemar un comprobante del paquete del cliente sin haberlo emitido.
 
-- [ ] 1.6 Generar y ejecutar migraciones de base de datos para los nuevos esquemas y relaciones
+- [x] 1.6 Generar y ejecutar migraciones de base de datos para los nuevos esquemas y relaciones
 
   **Migraciones necesarias:**
   - `api_keys` — Agregar scope `empresa:onboarding` a `SCOPES_DISPONIBLES`
@@ -449,10 +449,10 @@
 
 ---
 
-## Fase 1c — Parches de Validación + Blindaje (0/4)
+## Fase 1c — Parches de Validación + Blindaje (4/4)
 > **Objetivo:** Cerrar agujeros de validación y blindar la máquina de estados del e-CF.
 
-- [ ] 1.7 Control de e-NCF viciados (creación de modelo e infraestructura `NumeroViciado`)
+- [x] 1.7 Control de e-NCF viciados (creación de modelo e infraestructura `NumeroViciado`)
 
   **Agregar a `sequences/models.py`:**
   ```python
@@ -469,7 +469,7 @@
 
   Invocar `NumeroViciado.objects.create(...)` en el worker de Celery cuando la DGII retorna `RECHAZADO`.
 
-- [ ] 1.8 Corregir lógica de umbral de factura de consumo E32 (validar cédula + corregir bloque >= 250k)
+- [x] 1.8 Corregir lógica de umbral de factura de consumo E32 (validar cédula + corregir bloque >= 250k)
 
   **Problema del hallazgo 5.4:** El código actual:
   1. Solo valida `rnc_comprador`, ignora `cedula_comprador`
@@ -488,13 +488,13 @@
           self.razon_social_comprador = "CONSUMIDOR FINAL"
   ```
 
-- [ ] 1.10 Validación de consistencia del `MontoTotal` para Notas de Crédito E34 vs original
+- [x] 1.10 Validación de consistencia del `MontoTotal` para Notas de Crédito E34 vs original
 
   **Problema del hallazgo 5.3:** No existe validación de que `MontoTotal` de la nota de crédito no exceda el monto del e-CF original.
 
   **Corrección:** Ya incluida en `_validar_nota_modificacion()` del serializer (sección 1.3). Agregar también en `Comprobante.clean()` como segunda línea de defensa.
 
-- [ ] 1.11 Implementar `validate_transition()` en el modelo para blindar la máquina de estados del e-CF
+- [x] 1.11 Implementar `validate_transition()` en el modelo para blindar la máquina de estados del e-CF
 
   **Problema del hallazgo 4.3:** No existe `validate_transition()`. Los estados se pueden mutar a cualquier valor sin control.
 

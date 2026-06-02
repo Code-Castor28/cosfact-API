@@ -1,6 +1,6 @@
 from rest_framework import permissions
 
-from apps.users.models import Usuario
+from users.models import Usuario
 
 
 class IsSuperAdmin(permissions.BasePermission):

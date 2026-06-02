@@ -95,16 +95,16 @@ class Secuencial(models.Model):
                 name="uq_secuencial_empresa_tipoecf",
             ),
             models.CheckConstraint(
-                check=models.Q(minimo_asignado__gte=1),
+                condition=models.Q(minimo_asignado__gte=1),
                 name="ck_secuencial_minimo_asignado",
             ),
             models.CheckConstraint(
-                check=models.Q(
+                condition=models.Q(
                     maximo_asignado__gt=models.F("minimo_asignado")),
                 name="ck_secuencial_maximo_mayor_minimo",
             ),
             models.CheckConstraint(
-                check=models.Q(ultimo_numero__gte=0),
+                condition=models.Q(ultimo_numero__gte=0),
                 name="ck_secuencial_ultimo_numero",
             ),
         ]
@@ -157,6 +157,25 @@ class Secuencial(models.Model):
         if self.ultimo_numero > self.maximo_asignado:
             raise ValidationError(
                 {"ultimo_numero": "El último número no puede exceder el máximo asignado."})
+
+
+class NumeroViciado(models.Model):
+    """Registro inmutable de e-NCF que no pueden reutilizarse tras un rechazo DGII."""
+    empresa = models.ForeignKey(
+        "empresas.Empresa", on_delete=models.PROTECT
+    )
+    encf = models.CharField(max_length=13)
+    motivo = models.TextField()
+    viciado_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "numeros_viciados"
+        verbose_name = "Número Viciado"
+        verbose_name_plural = "Números Viciados"
+        unique_together = [("empresa", "encf")]
+
+    def __str__(self):
+        return f"{self.encf} — {self.empresa.rnc}"
 
 
 class MovimientoSecuencial(models.Model):

@@ -1,11 +1,13 @@
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, AuthenticationFailed
 from users.models import Usuario
+from empresas.models import Empresa
 from .models import Secuencial
-from .serializers import SecuencialSerializer
+from .serializers import SecuencialSerializer, OnboardingSerializer
 from .permissions import IsAdminEmpresaOrSuperAdmin, IsEmpresaOrAdminEmpresaOrSuperAdmin
 
 
@@ -89,3 +91,59 @@ class SecuencialViewSet(viewsets.ModelViewSet):
             update_fields=["bloqueado", "motivo_bloqueo", "fecha_bloqueo", "usuario_bloqueo", "actualizado_at"])
         data = self.get_serializer(instancia).data
         return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def onboarding(request):
+    """
+    POST /api/v1/secuencias/
+    SaaS Guard: registra rangos de e-NCF y opcionalmente certificado.
+    Scope requerido: empresa:onboarding (validado en ApiKeyAuthentication).
+    """
+    serializer = OnboardingSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    user = request.user
+    if isinstance(user, Empresa):
+        empresa = user
+    else:
+        empresa = user.empresa
+
+    suscripcion = empresa.suscripciones.filter(estado="ACTIVA").first()
+    if not suscripcion or not suscripcion.esta_activa:
+        return Response(
+            {"error": "La empresa no tiene una suscripción activa."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    plan = suscripcion.plan
+    volumen_total = sum(item["volumen"] for item in serializer.validated_data["secuencias"])
+    if volumen_total > plan.limite_comprobantes:
+        return Response(
+            {"error": f"Volumen total ({volumen_total}) excede el límite del plan ({plan.limite_comprobantes})."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    with transaction.atomic():
+        if empresa.onboarding_bloqueado:
+            return Response(
+                {"error": "Onboarding bloqueado. Deuda pendiente por resolver."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        for item in serializer.validated_data["secuencias"]:
+            Secuencial.objects.update_or_create(
+                empresa=empresa,
+                tipo_ecf=item["tipo_ecf"],
+                defaults={
+                    "minimo_asignado": int(item["desde"][3:]),
+                    "maximo_asignado": int(item["hasta"][3:]),
+                    "ultimo_numero": int(item["desde"][3:]) - 1,
+                },
+            )
+
+    return Response(
+        {"mensaje": "Onboarding completado exitosamente."},
+        status=status.HTTP_201_CREATED,
+    )
