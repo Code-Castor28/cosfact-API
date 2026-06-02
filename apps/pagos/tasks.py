@@ -169,4 +169,5 @@ def generar_pagos_automaticos():
 @shared_task(name='pagos.notificar_pagos_proximos')
 def notificar_pagos_proximos():
     logger.info("[PAGOS] Iniciando notificacion de pagos proximos")
-    pass
+    from notificaciones.tasks import alertar_suscripcion_vencimiento
+    alertar_suscripcion_vencimiento.delay()
