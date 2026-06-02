@@ -54,15 +54,27 @@ Este documento contiene la transcripción completa de todas las tablas de codifi
 
 *Nota: El documento no incluye el listado completo de códigos de moneda en las páginas transcritas. La tabla especifica su uso, haciendo referencia a códigos como "USD" (Dólar), "EUR" (Euro) y se mencionan actualizaciones para agregar "Peso Colombiano", "Gurda Haitiana" y "Peso Mexicano". Se asume que se utilizan los códigos ISO 4217 estándar, incluyendo "DOP" para Peso Dominicano.*
 
-| Código (Ejemplo) | Descripción |
+# TABLA II. CODIFICACIÓN MONEDAS
+
+| Código ISO | Moneda |
 |:---:|:---|
-| DOP | Peso Dominicano |
-| USD | Dólar Estadounidense |
-| EUR | Euro |
-| COP | Peso Colombiano |
-| HTG | Gurda Haitiana |
-| MXN | Peso Mexicano |
-| ... | Otras monedas según ISO 4217 |
+| BRL | REAL BRASILEÑO |
+| CAD | DOLAR CANADIENSE |
+| CHF | FRANCO SUIZO |
+| CHY | YUAN CHINO |
+| XDR | DERECHO ESPECIAL DE GIRO\(^{83}\) |
+| DKK | CORONA DANESA |
+| EUR | EURO |
+| GBP | LIBRA ESTERLINA |
+| JPY | YEN JAPONES |
+| NOK | CORONA NORUEGA |
+| SCP | LIBRA ESCOCESA |
+| SEK | CORONA SUECA |
+| USD | DOLAR ESTADOUNIDENSE |
+| VEF | BOLIVAR FUERTE VENEZOLANO |
+| HTG | GURDA HAITIANA |
+| MXN | PESO MEXICANO |
+| COP | PESO COLOMBIANO |
 
 *El Derecho Especial de Giro (DEG) no es una moneda, corresponde a la unidad de cuenta del FMI.*
 
