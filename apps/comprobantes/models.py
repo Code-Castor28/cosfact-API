@@ -115,7 +115,23 @@ class Comprobante(models.Model):
     monto_gravado = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     monto_exento = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     monto_itbis = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    monto_impuesto_adicional = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0
+    )
     monto_total = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    monto_avance_pago = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0
+    )
+    saldo_anterior = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0
+    )
+    valor_pagar = models.DecimalField(
+        max_digits=14, decimal_places=2, default=0
+    )
+    indicador_monto_gravado = models.PositiveSmallIntegerField(
+        choices=[(0, "Monto sin ITBIS"), (1, "Monto con ITBIS incluido")],
+        default=0,
+    )
 
     # Respuesta DGII
     estado = models.CharField(max_length=15, choices=ESTADOS, default=ESTADO_BORRADOR)
@@ -213,11 +229,24 @@ class Comprobante(models.Model):
     def __str__(self):
         return f"{self.encf or '(sin e-NCF)'} — {self.empresa.rnc} [{self.estado}]"
 
+    # ─── Máquina de estados ────────────────────────────────────────────────────
+
+    TRANSICIONES_PERMITIDAS = {
+        "BORRADOR":    {"PENDIENTE"},
+        "PENDIENTE":   {"PROCESANDO"},
+        "PROCESANDO":  {"ACEPTADO", "RECHAZADO", "ERROR", "CONTINGENCIA"},
+        "ACEPTADO":    {"ANULADO"},
+        "RECHAZADO":   {"BORRADOR"},
+        "ERROR":       {"PENDIENTE"},
+        "CONTINGENCIA":{"PENDIENTE"},
+        "ANULADO":     set(),
+    }
+
     # ─── Inmutabilidad ────────────────────────────────────────────────────────
 
     def save(self, *args, **kwargs):
         """
-        INMUTABILIDAD a nivel Python.
+        INMUTABILIDAD a nivel Python + validación de máquina de estados.
         CORREGIDO: También hay un trigger de DB en la migración para cubrir
         el caso de .update() que bypasea este save().
         """
@@ -229,6 +258,13 @@ class Comprobante(models.Model):
                         f"No se puede modificar un comprobante en estado "
                         f"'{original['estado']}'. Es inmutable por cumplimiento fiscal."
                     )
+                if self.estado != original["estado"]:
+                    if self.estado not in self.TRANSICIONES_PERMITIDAS.get(
+                            original["estado"], set()):
+                        raise ValidationError(
+                            f"Transición inválida: "
+                            f"{original['estado']} -> {self.estado}"
+                        )
             except Comprobante.DoesNotExist:
                 pass
 
@@ -267,9 +303,11 @@ class Comprobante(models.Model):
         if self.tipo_ecf == 32:
             monto_total = self.monto_total or Decimal("0.00")
             if monto_total >= Decimal("250000.00"):
-                if not self.rnc_comprador:
-                    errores["rnc_comprador"] = "E32 ≥ RD$250,000 requiere RNC/Cédula del comprador."
-            if not self.rnc_comprador:
+                if not self.rnc_comprador and not self.cedula_comprador:
+                    errores["rnc_comprador"] = (
+                        "E32 >= RD$250,000 requiere RNC/Cédula del comprador."
+                    )
+            elif not self.rnc_comprador:
                 self.razon_social_comprador = "CONSUMIDOR FINAL"
 
         # 4. E33/E34 (Notas): Validación de campos de referencia
@@ -297,6 +335,13 @@ class Comprobante(models.Model):
                                 "El RCN del comprador de la nota debe coincidir "
                                 "con el RNC de la factura original."
                             )
+                    if self.tipo_ecf == 34:
+                        if self.monto_total and original.monto_total:
+                            if self.monto_total > original.monto_total:
+                                errores["monto_total"] = (
+                                    "Nota de Crédito E34 no puede superar el "
+                                    f"monto del e-CF original ({original.monto_total})."
+                                )
 
             if self.razon_modificacion:
                 self.razon_modificacion = self.razon_modificacion[:90]
@@ -345,15 +390,33 @@ class ComprobanteDetalle(models.Model):
     )
 
     numero_linea = models.PositiveSmallIntegerField()
+
+    # DGII §6 — Campos del ItemComprobante
+    indicador_facturacion = models.PositiveSmallIntegerField(
+        choices=[
+            (1, "Bienes o servicios gravados con ITBIS 18%"),
+            (2, "Bienes o servicios gravados con ITBIS 16%"),
+            (3, "Bienes o servicios gravados con ITBIS 0%"),
+            (4, "Bienes o servicios exentos"),
+        ],
+        default=1,
+    )
+    nombre_item = models.CharField(max_length=200, default="")
+    unidad_medida = models.PositiveSmallIntegerField(default=1)
+    cantidad = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    precio_unitario_item = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    descuento_monto = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    monto_item = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    # Campos legacy — mantenidos por compatibilidad
     codigo_producto = models.CharField(max_length=50, blank=True)
-    descripcion = models.CharField(max_length=500)
-    cantidad = models.DecimalField(max_digits=14, decimal_places=4)
-    precio_unitario = models.DecimalField(max_digits=14, decimal_places=4)
+    descripcion = models.CharField(max_length=500, blank=True)
+    precio_unitario = models.DecimalField(max_digits=14, decimal_places=4, default=0)
     descuento = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     recargo = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     itbis_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=18)
     itbis_monto = models.DecimalField(max_digits=14, decimal_places=2, default=0)
-    subtotal = models.DecimalField(max_digits=14, decimal_places=2)
+    subtotal = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
     class Meta:
         db_table = "comprobante_detalles"
