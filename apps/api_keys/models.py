@@ -31,6 +31,7 @@ class ApiKey(models.Model):
         "comprobantes:consultar",
         "comprobantes:anular",
         "secuenciales:consultar",
+        "empresa:onboarding",
     ]
     VENTANA_MINUTO = "MINUTE"
     VENTANA_HORA = "HOUR"
