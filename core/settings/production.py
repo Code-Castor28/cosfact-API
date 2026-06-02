@@ -46,8 +46,8 @@ DATABASES = {
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
-# Usar sesiones para guardar token CSRF (más confiable en este escenario)
-CSRF_USE_SESSIONS = True
+# No usar sesiones para CSRF — el SPA necesita leer la cookie csrftoken
+CSRF_USE_SESSIONS = False
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True

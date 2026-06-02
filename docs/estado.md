@@ -12,9 +12,9 @@
 | Fase 1a — Infraestructura (Scopes + Onboarding) | 2 | 2 |
 | Fase 1b — Comprobantes CRUD | 4 | 4 |
 | Fase 1c — Parches de Validación + Blindaje | 4 | 4 |
-| Fase 2 — Webhooks y Notificaciones | 0 | 9 |
+| Fase 2 — Webhooks y Notificaciones | 9 | 9 |
 | Fase 3 — Deuda Técnica | 0 | 6 |
-| **Total** | **16** | **31** |
+| **Total** | **25** | **31** |
 
 ---
 
@@ -44,6 +44,17 @@
 - ✅ 1.10 Validación MontoTotal para E34
 - ✅ 1.11 Implementar `validate_transition()`
 
+### Fase 2 — Webhooks y Notificaciones
+- ✅ 2.1 Webhook Serializers
+- ✅ 2.2 Webhook Views (CRUD + entregas)
+- ✅ 2.3 Webhook Services + Tasks (reintentos HMAC)
+- ✅ 2.4 Disparar webhooks desde dgii/services.py
+- ✅ 2.5 App notificaciones (models + services)
+- ✅ 2.6 Tasks de notificaciones + templates
+- ✅ 2.7 Completar `notificar_pagos_proximos`
+- ✅ 2.8 Celery Beat nocturno (`CONTINGENCIA`)
+- ✅ 2.9 Backoff con jitter en reintentos
+
 ---
 
 ## 🔄 En Progreso
@@ -57,17 +68,6 @@ _(nada aún)_
 ### Fase 0 — Seguridad y Estabilidad
 
 
-
-### Fase 2 — Webhooks y Notificaciones
-- ⬜ 2.1 Webhook Serializers
-- ⬜ 2.2 Webhook Views (CRUD + entregas)
-- ⬜ 2.3 Webhook Services + Tasks (reintentos HMAC)
-- ⬜ 2.4 Disparar webhooks desde `dgii/tasks.py`
-- ⬜ 2.5 App notificaciones (models + services)
-- ⬜ 2.6 Tasks de notificaciones + templates
-- ⬜ 2.7 Completar `notificar_pagos_proximos`
-- ⬜ 2.8 Celery Beat nocturno (`CONTINGENCIA`)
-- ⬜ 2.9 Backoff con jitter en reintentos
 
 ### Fase 3 — Deuda Técnica
 - ⬜ 3.1 `CleanModelSerializer` con `partial=True`
@@ -88,3 +88,4 @@ _(nada aún)_
 | 2026-06-02 | Fase 1a | 1.1–1.2 | Scopes con regex en ApiKeyAuthentication + endpoint onboarding POST /api/v1/secuencias/ |
 | 2026-06-02 | Fase 1b | 1.3–1.6 | Serializers con ROUND_HALF_UP, service POS atómico, consumo balance, migraciones DB |
 | 2026-06-02 | Fase 1c | 1.7–1.11 | NumeroViciado, fix E32 cédula, MontoTotal E34, validate_transition máquina estados |
+| 2026-06-02 | Fase 2 | 2.1–2.9 | Webhooks CRUD + HMAC + servicios, disparo desde DGII, notificaciones (4 templates + tasks), backoff con jitter, Celery Beat nocturno CONTINGENCIA |

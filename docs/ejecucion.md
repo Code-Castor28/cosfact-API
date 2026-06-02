@@ -13,9 +13,9 @@
 | Fase 1a — Infraestructura (Scopes + Onboarding) | ✅ 2/2 |
 | Fase 1b — Comprobantes CRUD | ✅ 4/4 |
 | Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
-| Fase 2 — Webhooks y Notificaciones | ⬜ 0/9 |
+| Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
 | Fase 3 — Deuda Técnica | ⬜ 0/6 |
-| **Total** | **⬜ 16/31** |
+| **Total** | **✅ 25/31** |
 
 ---
 
@@ -529,10 +529,10 @@
 
 ---
 
-## Fase 2 — Webhooks y Notificaciones (0/9)
+## Fase 2 — Webhooks y Notificaciones (9/9)
 > **Objetivo:** Cerrar el ciclo de vida del comprobante. El POS se entera del veredicto fiscal. El humano recibe correos relevantes.
 
-- [ ] 2.1 Webhook Serializers (esquema de eventos externos)
+- [x] 2.1 Webhook Serializers (esquema de eventos externos)
 
   **Archivo:** `webhooks/serializers.py`
   ```python
@@ -549,7 +549,7 @@
                     'ultimo_http_status', 'error_mensaje']
   ```
 
-- [ ] 2.2 Webhook Views (controladores CRUD + historial de entregas)
+- [x] 2.2 Webhook Views (controladores CRUD + historial de entregas)
 
   **Archivo:** `webhooks/views.py`
   ```python
@@ -563,7 +563,7 @@
       # GET    /api/v1/webhooks/{id}/entregas/ → historial de entregas
   ```
 
-- [ ] 2.3 Webhook Services + Tasks (motor de reintentos asíncronos con firma HMAC-SHA256)
+- [x] 2.3 Webhook Services + Tasks (motor de reintentos asíncronos con firma HMAC-SHA256)
 
   **Archivo:** `webhooks/services.py`
   ```python
@@ -579,7 +579,7 @@
       # Registrar WebhookEntrega con estado y respuesta HTTP
   ```
 
-- [ ] 2.4 Disparar eventos de webhooks desde `dgii/tasks.py` al pasar a estados terminales
+- [x] 2.4 Disparar eventos de webhooks desde `dgii/tasks.py` al pasar a estados terminales
 
   **Nota:** Usar solo eventos que existen en `Webhook.EVENTOS_DISPONIBLES`:
   - `comprobante.aceptado`
@@ -594,7 +594,7 @@
   disparar_webhook(empresa, "comprobante.rechazado", {...})
   ```
 
-- [ ] 2.5 App de notificaciones (configuración base de models + services aislados)
+- [x] 2.5 App de notificaciones (configuración base de models + services aislados)
 
   **Estructura mínima:**
   ```
@@ -612,7 +612,7 @@
         suscripcion_por_vencer.html
   ```
 
-- [ ] 2.6 Tasks de distribución de notificaciones y renderizado de templates HTML
+- [x] 2.6 Tasks de distribución de notificaciones y renderizado de templates HTML
 
   | Tarea Celery | Disparada por | Contenido |
   |:---|:---|:---|
@@ -621,13 +621,13 @@
   | `alertar_certificado_vencimiento` | `empresas` Celery Beat diario | "Tu .p12 vence en N días" |
   | `alertar_suscripcion_vencimiento` | `suscripciones` Celery Beat diario | "Tu plan vence el DD/MM/YYYY" |
 
-- [ ] 2.7 Completar lógica interna de la tarea cron `notificar_pagos_proximos`
+- [x] 2.7 Completar lógica interna de la tarea cron `notificar_pagos_proximos`
 
   **Problema del hallazgo 10.12:** Actualmente es `pass`.
 
   **Corrección:** Reemplazar el `pass` actual en `pagos/tasks.py` con la invocación a `notificaciones.tasks.alertar_suscripcion_vencimiento`.
 
-- [ ] 2.8 Celery Beat nocturno para rescate automático de comprobantes en `CONTINGENCIA`
+- [x] 2.8 Celery Beat nocturno para rescate automático de comprobantes en `CONTINGENCIA`
 
   **Agregar a `core/celery.py`:**
   ```python
@@ -646,7 +646,7 @@
           reintentar_envio_ecf.delay(c.id)
   ```
 
-- [ ] 2.9 Algoritmo de Backoff exponencial con jitter en la tarea de reintento de envío de e-CF
+- [x] 2.9 Algoritmo de Backoff exponencial con jitter en la tarea de reintento de envío de e-CF
 
   **Problema del hallazgo 9.1:** Los valores actuales son fijos sin randomización.
 
