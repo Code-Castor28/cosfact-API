@@ -14,8 +14,8 @@
 | Fase 1b — Comprobantes CRUD | ⬜ 0/4 |
 | Fase 1c — Parches de Validación + Blindaje | ⬜ 0/4 |
 | Fase 2 — Webhooks y Notificaciones | ⬜ 0/9 |
-| Fase 3 — Deuda Técnica | ⬜ 0/5 |
-| **Total** | **⬜ 0/30** |
+| Fase 3 — Deuda Técnica | ⬜ 0/6 |
+| **Total** | **⬜ 0/31** |
 
 ---
 
@@ -224,6 +224,13 @@
           ]
 
       def validate(self, attrs):
+          # §6.2 DGII: Indicador 0 no soportado en Fase 1
+          if attrs.get('indicador_facturacion') == 0:
+              raise ValidationError(
+                  "El Indicador de Facturación '0' (No Facturable) "
+                  "no está soportado en esta versión corporativa."
+              )
+
           # MontoItem = ROUND_HALF_UP((Cantidad × Precio) - Descuento, 2)
           calculado = (
               (attrs['cantidad'] * attrs['precio_unitario_item'])
@@ -248,18 +255,42 @@
           ]
 
       def validate(self, attrs):
+          # §8 DGII — Máximos de repeticiones por sección
+          detalles = attrs.get('detalles', [])
+          tipo = attrs.get('tipo_ecf')
+          monto = attrs.get('monto_total', Decimal('0'))
+          max_lineas = self._limite_lineas_por_tipo(tipo, monto)
+          if len(detalles) > max_lineas:
+              raise ValidationError({
+                  'detalles': (
+                      f"Tipo e-CF {tipo} permite máximo {max_lineas} líneas. "
+                      f"Recibidas: {len(detalles)}."
+                  )
+              })
+
           self._validar_tipo(attrs)
           self._validar_comprador(attrs)
           self._validar_nota_modificacion(attrs)
           self._validar_totales(attrs)
           return attrs
 
+      def _limite_lineas_por_tipo(self, tipo, monto):
+          """§6.3 DGII — Límite de líneas según tipo e-CF y monto."""
+          if tipo == 32:
+              if monto >= Decimal('250000.00'):
+                  return 1000
+              return 10000
+          return 100
+
       def _validar_totales(self, attrs):
-          """Recalcula bases e ITBIS línea por línea y verifica contra encabezado."""
+          """§7 DGII — Recalcula bases e ITBIS línea por línea y verifica contra encabezado.
+          Fórmula: MontoTotal = MontoGravadoTotal + MontoExento + TotalITBIS + MontoImpuestoAdicional
+          """
           TASAS = {1: Decimal('0.18'), 2: Decimal('0.16'), 3: Decimal('0.00')}
           monto_gravado = Decimal('0')
           monto_exento  = Decimal('0')
           total_itbis   = Decimal('0')
+          monto_impuesto_adicional = attrs.get('monto_impuesto_adicional', Decimal('0'))
 
           for item in attrs.get('detalles', []):
               monto = item['monto_item']
@@ -280,9 +311,9 @@
               elif indicador == 4:
                   monto_exento += monto
 
-          total_calculado = (monto_gravado + monto_exento + total_itbis).quantize(
-              Decimal('0.01'), rounding=ROUND_HALF_UP
-          )
+          total_calculado = (
+              monto_gravado + monto_exento + total_itbis + monto_impuesto_adicional
+          ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
           if total_calculado != attrs['monto_total']:
               raise ValidationError({
                   'monto_total': (
@@ -349,6 +380,9 @@
 
   **Nota de diseño:** El comprobante se guarda en DB primero (BORRADOR) para tener PK, luego se firma, luego se actualiza a estado PENDIENTE. Esto evita el problema de firmar sin ID.
 
+  **Fórmula ValorPagar (§7 DGII):** `ValorPagar = MontoTotal - MontoAvancePago ± SaldoAnterior`
+  Este campo se calcula en el service y se incluye en la respuesta síncrona y en el XML.
+
   ```
   create_comprobante(data, empresa):
     1. Verificar suscripción ACTIVA y Paquete con balance > 0
@@ -356,15 +390,16 @@
        → Si falla → 403 "Cuota agotada"
     2. Obtener próximo e-NCF de sequences.services.obtener_proximo_encf()
        → Si agotado → marcar onboarding_bloqueado=True → 403 "Secuencia agotada"
-    3. Guardar Comprobante en estado BORRADOR con e-NCF asignado (tiene PK ahora)
-    4. Guardar ComprobanteDetalle (bulk_create)
-    5. Invocar dgii.services.firmar_xml_sincrono(comprobante)
+    3. Calcular ValorPagar = MontoTotal - MontoAvancePago ± SaldoAnterior
+    4. Guardar Comprobante en estado BORRADOR con e-NCF asignado (tiene PK ahora)
+    5. Guardar ComprobanteDetalle (bulk_create)
+    6. Invocar dgii.services.firmar_xml_sincrono(comprobante)
        → Retorna (xml_string, codigo_seguridad)
        → Si ERROR → revertir consumo → borrar comprobante → 503 con mensaje
-    6. Actualizar comprobante: xml_firmado, codigo_seguridad, estado → PENDIENTE
-    7. Disparar tarea Celery: enviar_a_dgii.delay(comprobante.id)
-    8. Retornar respuesta síncrona mínima:
-       {uuid, e_ncf, server_timestamp, codigo_seguridad, sequence_status: "consumed"}
+    7. Actualizar comprobante: xml_firmado, codigo_seguridad, estado → PENDIENTE
+    8. Disparar tarea Celery: enviar_a_dgii.delay(comprobante.id)
+    9. Retornar respuesta síncrona mínima:
+       {uuid, e_ncf, server_timestamp, codigo_seguridad, valor_pagar, sequence_status: "consumed"}
   ```
 
   **Vista `apps/comprobantes/views.py`:**
@@ -629,7 +664,7 @@
 
 ---
 
-## Fase 3 — Deuda Técnica (0/5)
+## Fase 3 — Deuda Técnica (0/6)
 > **Objetivo:** Pulir la calidad del código antes de abrir a más clientes. No es bloqueante para producción.
 
 - [ ] 3.1 Corrección de `CleanModelSerializer` para soportar actualizaciones parciales (`partial=True`)
@@ -676,6 +711,45 @@
 
   1. Agregar al `ARCHITECTURE.md` que existe un tercer ambiente `certecf` (certificación DGII) además de `testecf` y `ecf`.
   2. Definir permisos del rol `USUARIO_EMPRESA` (actualmente existe en el modelo pero no está documentado ni tiene controles asociados).
+
+- [ ] 3.6 Catálogos DGII como modelos editables vía admin
+
+  **Ubicación:** `dgii/catalogs/models.py`
+
+  **Modelos de referencia (Tablas I, II, III, IV, §10, §22 DGII):**
+  ```python
+  class Provincia(models.Model):
+      codigo = models.CharField(max_length=6, primary_key=True)
+      nombre = models.CharField(max_length=100)
+
+  class Municipio(models.Model):
+      codigo = models.CharField(max_length=6, primary_key=True)
+      provincia = models.ForeignKey(Provincia, on_delete=models.CASCADE)
+      nombre = models.CharField(max_length=100)
+
+  class UnidadMedida(models.Model):
+      codigo = models.PositiveSmallIntegerField(primary_key=True)
+      abreviatura = models.CharField(max_length=10)
+      nombre = models.CharField(max_length=100)
+
+  class Moneda(models.Model):
+      codigo_iso = models.CharField(max_length=3, primary_key=True)
+      nombre = models.CharField(max_length=100)
+
+  class ImpuestoAdicional(models.Model):
+      codigo = models.CharField(max_length=3, primary_key=True)
+      descripcion = models.CharField(max_length=200)
+      tipo = models.CharField(max_length=20)  # PORCENTUAL, ESPECIFICO, ADVALOREM
+      tasa = models.DecimalField(max_digits=10, decimal_places=2)
+
+  class FormaPago(models.Model):
+      codigo = models.PositiveSmallIntegerField(primary_key=True)
+      nombre = models.CharField(max_length=100)
+  ```
+
+  **Seed data:** Management command `cargar_catalogos_dgii.py` que inserte todas las tablas desde los documentos DGII.
+
+  **Admin:** Todos los modelos registrados para edición por superadmin cuando DGII actualice códigos o tasas.
 
 ---
 

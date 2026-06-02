@@ -13,8 +13,8 @@
 | Fase 1b — Comprobantes CRUD | 0 | 4 |
 | Fase 1c — Parches de Validación + Blindaje | 0 | 4 |
 | Fase 2 — Webhooks y Notificaciones | 0 | 9 |
-| Fase 3 — Deuda Técnica | 0 | 5 |
-| **Total** | **0** | **30** |
+| Fase 3 — Deuda Técnica | 0 | 6 |
+| **Total** | **0** | **31** |
 
 ---
 
@@ -73,6 +73,7 @@ _(nada aún)_
 - ⬜ 3.3 Idempotency Key (header del POS)
 - ⬜ 3.4 Tests: sequences, subscriptions, webhooks
 - ⬜ 3.5 Documentar `certecf` + `USUARIO_EMPRESA`
+- ⬜ 3.6 Catálogos DGII como modelos editables vía admin
 
 ---
 
@@ -80,4 +81,4 @@ _(nada aún)_
 
 | Fecha | Fase | Task | Cambio |
 |:-----|:-----|:----|:-------|
-| 2026-06-02 | — | — | Plan creado con 30 tasks en 6 fases |
+| 2026-06-02 | — | — | Plan creado con 31 tasks en 6 fases |
