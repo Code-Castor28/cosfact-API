@@ -27,7 +27,7 @@ class LogNotificacion(models.Model):
     empresa = models.ForeignKey(
         "empresas.Empresa",
         on_delete=models.CASCADE,
-        related_name="notificaciones",
+        related_name="logs_notificaciones",
     )
     destinatario = models.EmailField()
     canal = models.CharField(max_length=10, choices=CANALES, default=CANAL_CORREO)

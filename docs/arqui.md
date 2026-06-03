@@ -73,6 +73,7 @@ DerejFactAPI es una **API puente (middleware) de facturación electrónica pura*
 |:---|:---|
 | `SUPERADMIN` | Acceso total. No tiene empresa asignada. Registra pagos manualmente. |
 | `ADMIN_EMPRESA` | Acceso al panel de su empresa. Visualiza comprobantes, historial y suscripción. |
+| `USUARIO_EMPRESA` | Acceso de solo lectura al panel de su empresa (no puede modificar configuración, no tiene acceso a pagos ni API Keys). |
 
 **Comunicación inter-app:**
 - Se enlaza mediante `ForeignKey` a `empresas` para que el administrador vea el historial fiscal y de pagos de su negocio.
@@ -98,7 +99,7 @@ DerejFactAPI es una **API puente (middleware) de facturación electrónica pura*
 
 **Modelos clave:**
 
-- `Empresa`: RNC, Razón Social, Nombre Comercial, Ambiente DGII (`testecf` / `ecf`), Estado, Activa.
+- `Empresa`: RNC, Razón Social, Nombre Comercial, Ambiente DGII (`testecf` / `certecf` / `ecf`), Estado, Activa.
 - `CertificadoDigital`: Archivo `.p12` (disco Ubuntu), PIN cifrado con Fernet, fecha de vencimiento.
 
 **Regla de seguridad del PIN:**
@@ -652,7 +653,7 @@ Anual:   precio_anual   × (días_usados / 365)
 
 | Método | Ruta | Acceso | Estado |
 |:---:|:---|:---:|:---:|
-| `POST` | `/api/v1/secuencias/` | API-Key (`empresa:onboarding`) | 🔧 Pendiente |
+| `POST` | `/api/v1/secuencias/` | API-Key (`empresa:onboarding`) | ✅ Activo |
 | `GET` | `/api/v1/secuenciales/` | JWT | ✅ Activo |
 | `GET` | `/api/v1/secuenciales/{id}/preview/` | JWT | ✅ Activo |
 | `POST` | `/api/v1/secuenciales/{id}/bloquear/` | JWT | ✅ Activo |
@@ -704,5 +705,30 @@ Anual:   precio_anual   × (días_usados / 365)
 
 ---
 
-*Versión: 1.0.0 — Estado del backend al 31 de mayo de 2026*
+## 11. Ambientes DGII
+
+La plataforma DerejFactAPI soporta tres ambientes de facturación electrónica definidos por la DGII:
+
+| Ambiente | Código | Uso |
+|:---|:---:|:---|
+| **Desarrollo / Test** | `testecf` | Pruebas internas. No requiere certificado real. Ideal para el POS en modo desarrollo. |
+| **Certificación** | `certecf` | Certificación formal con la DGII antes de pasar a producción. El POS debe completar las pruebas del ente fiscal. |
+| **Producción** | `ecf` | Facturación real con validez fiscal. Solo accesible tras certificación aprobada. |
+
+Cada ambiente apunta a un Web Service SOAP diferente de la DGII. La empresa selecciona su ambiente en el campo `ambiente` del modelo `Empresa` y el valor se utiliza en `apps/dgii/services.py` para determinar la URL del endpoint SOAP.
+
+---
+
+## 12. Permisos del Rol USUARIO_EMPRESA
+
+El rol `USUARIO_EMPRESA` está definido en el modelo `Usuario` y actualmente opera como un rol de solo lectura con los siguientes permisos:
+
+- **Visualización:** Acceso al panel web para ver comprobantes emitidos por su empresa, historial de estados fiscales y consumo del paquete.
+- **Autenticación:** Login vía JWT con contraseña propia.
+- **Restricciones:** No puede crear/modificar API Keys, no tiene acceso a pagos ni facturación, no puede modificar secuenciales ni configuración de la empresa.
+- **Uso típico:** Propietario del negocio o contador externo que necesita visibilidad del estatus fiscal sin acceso administrativo.
+
+---
+
+*Versión: 2.0.0 — Actualizado el 2 de junio de 2026*
 *Basado en las decisiones arquitectónicas consolidadas del equipo DerejSoft*

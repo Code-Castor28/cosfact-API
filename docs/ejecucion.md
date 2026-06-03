@@ -14,8 +14,8 @@
 | Fase 1b — Comprobantes CRUD | ✅ 4/4 |
 | Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
 | Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
-| Fase 3 — Deuda Técnica | ⬜ 0/6 |
-| **Total** | **✅ 25/31** |
+| Fase 3 — Deuda Técnica | ✅ 6/6 |
+| **Total** | **✅ 31/31** |
 
 ---
 
@@ -664,10 +664,10 @@
 
 ---
 
-## Fase 3 — Deuda Técnica (0/6)
+## Fase 3 — Deuda Técnica (6/6)
 > **Objetivo:** Pulir la calidad del código antes de abrir a más clientes. No es bloqueante para producción.
 
-- [ ] 3.1 Corrección de `CleanModelSerializer` para soportar actualizaciones parciales (`partial=True`)
+- [x] 3.1 Corrección de `CleanModelSerializer` para soportar actualizaciones parciales (`partial=True`)
 
   **Problema del hallazgo 10.11:** `ModelClass(**attrs)` falla si faltan campos required en PATCH.
 
@@ -687,32 +687,32 @@
       return attrs
   ```
 
-- [ ] 3.2 Modificar la firma HMAC de auditoría para incluir estrictamente el `id` y `creado_at`
+- [x] 3.2 Modificar la firma HMAC de auditoría para incluir estrictamente el `id` y `creado_at`
 
   **Problema del hallazgo 4.7:** La firma no incluye `id` ni `creado_at`, lo que permite reemplazar un registro completo sin alterar la firma.
 
   **Corrección en `audit/models.py`:** Agregar ambos campos al payload del HMAC.
 
-- [ ] 3.3 Estandarización de Idempotency Key (forzar origen desde el header del POS, no auto-generado por DB)
+- [x] 3.3 Estandarización de Idempotency Key (forzar origen desde el header del POS, no auto-generado por DB)
 
   **Problema del hallazgo 7:** `default=uuid.uuid4` auto-genera la key, derrotando el propósito.
   - Decisión: cambiar a `null=True, blank=True` (sin default auto) y exigir el valor desde el header `Idempotency-Key` o el body del request.
   - La vista debe validar unicidad antes de procesar.
   - Documentar en el contrato de la API.
 
-- [ ] 3.4 Cobertura de pruebas unitarias automatizadas en apps vacías
+- [x] 3.4 Cobertura de pruebas unitarias automatizadas en apps vacías
 
   Prioridad:
   1. `sequences/tests.py` — SaaS Guard y asignación atómica de e-NCF
   2. `subscriptions/tests.py` — Consumo y reversión de balance
   3. `webhooks/tests.py` — Entrega con reintentos y firma HMAC
 
-- [ ] 3.5 Documentación de la arquitectura del entorno `certecf` y los permisos del rol `USUARIO_EMPRESA`
+- [x] 3.5 Documentación de la arquitectura del entorno `certecf` y los permisos del rol `USUARIO_EMPRESA`
 
   1. Agregar al `ARCHITECTURE.md` que existe un tercer ambiente `certecf` (certificación DGII) además de `testecf` y `ecf`.
   2. Definir permisos del rol `USUARIO_EMPRESA` (actualmente existe en el modelo pero no está documentado ni tiene controles asociados).
 
-- [ ] 3.6 Catálogos DGII como modelos editables vía admin
+- [x] 3.6 Catálogos DGII como modelos editables vía admin
 
   **Ubicación:** `dgii/catalogs/models.py`
 

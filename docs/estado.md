@@ -13,8 +13,8 @@
 | Fase 1b — Comprobantes CRUD | 4 | 4 |
 | Fase 1c — Parches de Validación + Blindaje | 4 | 4 |
 | Fase 2 — Webhooks y Notificaciones | 9 | 9 |
-| Fase 3 — Deuda Técnica | 0 | 6 |
-| **Total** | **25** | **31** |
+| Fase 3 — Deuda Técnica | 6 | 6 |
+| **Total** | **31** | **31** |
 
 ---
 
@@ -59,23 +59,13 @@
 
 ## 🔄 En Progreso
 
-_(nada aún)_
-
----
-
-## ⬜ Pendiente
-
-### Fase 0 — Seguridad y Estabilidad
-
-
-
 ### Fase 3 — Deuda Técnica
-- ⬜ 3.1 `CleanModelSerializer` con `partial=True`
-- ⬜ 3.2 HMAC con `id` y `creado_at`
-- ⬜ 3.3 Idempotency Key (header del POS)
-- ⬜ 3.4 Tests: sequences, subscriptions, webhooks
-- ⬜ 3.5 Documentar `certecf` + `USUARIO_EMPRESA`
-- ⬜ 3.6 Catálogos DGII como modelos editables vía admin
+- ✅ 3.1 `CleanModelSerializer` con `partial=True`
+- ✅ 3.2 HMAC con `id` y `creado_at`
+- ✅ 3.3 Idempotency Key (header del POS)
+- ✅ 3.4 Tests: sequences, subscriptions, webhooks
+- ✅ 3.5 Documentar `certecf` + `USUARIO_EMPRESA`
+- ✅ 3.6 Catálogos DGII como modelos editables vía admin
 
 ---
 
@@ -89,3 +79,5 @@ _(nada aún)_
 | 2026-06-02 | Fase 1b | 1.3–1.6 | Serializers con ROUND_HALF_UP, service POS atómico, consumo balance, migraciones DB |
 | 2026-06-02 | Fase 1c | 1.7–1.11 | NumeroViciado, fix E32 cédula, MontoTotal E34, validate_transition máquina estados |
 | 2026-06-02 | Fase 2 | 2.1–2.9 | Webhooks CRUD + HMAC + servicios, disparo desde DGII, notificaciones (4 templates + tasks), backoff con jitter, Celery Beat nocturno CONTINGENCIA |
+| 2026-06-02 | Fase 3 | 3.1–3.3 | CleanModelSerializer partial=True, HMAC audit con id+creado_at, Idempotency Key desde header del POS |
+| 2026-06-02 | Fase 3 | 3.4–3.6 | Tests (sequences, subscriptions, webhooks), docs certecf+USUARIO_EMPRESA, Catálogos DGII (6 modelos + admin + seed command) |

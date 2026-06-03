@@ -8,30 +8,21 @@ class CleanModelSerializer(serializers.ModelSerializer):
     enforced and any DjangoValidationErrors are propagated to the DRF API response.
     """
     def validate(self, attrs):
-        # Call parent validate
         attrs = super().validate(attrs)
-        
-        # Instantiate the model in memory to run validation
-        meta = getattr(self, "Meta", None)
-        ModelClass = getattr(meta, "model", None)
-        
+
+        ModelClass = getattr(self.Meta, "model", None)
         if not ModelClass:
             return attrs
-            
-        instance = ModelClass(**attrs)
-        
-        # If it's an update, apply the changes to the existing instance
-        if self.instance:
-            for attr, value in attrs.items():
-                setattr(instance, attr, value)
-                
+
+        instance = self.instance or ModelClass()
+        for field, value in attrs.items():
+            setattr(instance, field, value)
+
         try:
-            # Force the model's business logic validation
             instance.clean()
         except DjangoValidationError as e:
-            # Convert Django error to DRF format so the frontend can consume it
             if hasattr(e, 'message_dict'):
                 raise serializers.ValidationError(e.message_dict)
             raise serializers.ValidationError(e.messages)
-            
+
         return attrs
