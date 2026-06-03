@@ -27,6 +27,7 @@ Rutas disponibles bajo `/api/v1/`:
 - `secuenciales/{id}/preview/`
 - `secuenciales/{id}/bloquear/`
 - `secuenciales/{id}/desbloquear/`
+- `secuencias/` (onboarding)
 - `pagos/`
 - `pagos/{id}/actualizar_confirmacion/`
 - `pagos/{id}/confirmar/` (deprecated, usar actualizar_confirmacion)
@@ -34,14 +35,20 @@ Rutas disponibles bajo `/api/v1/`:
 - `pagos/{id}/pdf/a4/`
 - `pagos/{id}/pdf/80mm/`
 - `pagos/historial/`
+- `provincias/`
+- `municipios/`
+- `unidades-medida/`
+- `monedas/`
+- `impuestos-adicionales/`
+- `formas-pago/`
+- `webhooks/`
+- `webhooks/{id}/entregas/`
 
 Rutas que hoy estan vacias o no implementadas:
 
 - `comprobantes/` (modelos listos, vistas pendientes)
-- `dgii/` (servicios listos, vistas pendientes)
-- `webhooks/` (modelos listos, vistas pendientes)
 
-Si quieres probar en Postman, concentrate en las rutas de arriba. Las otras no te van a responder porque aun no tienen vistas.
+Si quieres probar en Postman, concentrate en las rutas de arriba.
 
 ## 2. Autenticacion
 
@@ -719,10 +726,9 @@ No pierdas tiempo en estos endpoints porque el codigo actual no tiene vistas rea
 - `POST /api/v1/comprobantes/nota-credito/`
 - `POST /api/v1/comprobantes/nota-debito/`
 - `GET /api/v1/comprobantes/{id}/`
-- cualquier ruta de `dgii/`
-- cualquier ruta de `webhooks/`
+- `GET/POST /api/v1/comprobantes/`
 
-Esas rutas aparecen en la documentacion vieja, pero aun no existen en el proyecto.
+Las rutas de `dgii/` y `webhooks/` **ya existen** (ver secciones 11.11 y 11.12). `comprobantes/` sigue pendiente de implementacion.
 
 ## 7. Flujo recomendado de prueba en Postman
 
@@ -988,7 +994,81 @@ Todas las rutas bajo `/api/v1/` que **sí existen hoy** en el código. La column
 | `GET` | `/api/v1/pagos/{id}/pdf/80mm/` | 200 | JWT | Descargar comprobante PDF tamaño ticket. |
 | `GET` | `/api/v1/pagos/historial/` | 200 | JWT | Historial completo. Filtro `?empresa=<uuid>`. |
 
-### 11.11 Códigos de error comunes (endpoints actuales)
+### 11.11 Catálogos DGII
+
+La app `dgii` expone los catálogos oficiales de la DGII (Tablas I–IV del e-CF v1.0).  
+**Autenticación:** JWT (`Authorization: Bearer <jwt_access>`).  
+**Escritura** (POST, PATCH, DELETE) solo para SUPERADMIN. **Lectura** (GET) cualquier usuario autenticado.  
+Todos los lookups son por código (string), no UUID.
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `GET` | `/api/v1/provincias/` | 200 | JWT | Listar provincias (Tabla III DGII, 32 provincias). |
+| `POST` | `/api/v1/provincias/` | 201 | JWT + SUPERADMIN | Crear provincia. |
+| `GET` | `/api/v1/provincias/{codigo}/` | 200 | JWT | Detalle de provincia. |
+| `PATCH` | `/api/v1/provincias/{codigo}/` | 200 | JWT + SUPERADMIN | Actualizar nombre de provincia. |
+| `DELETE` | `/api/v1/provincias/{codigo}/` | 204 | JWT + SUPERADMIN | Eliminar provincia. |
+| `GET` | `/api/v1/municipios/` | 200 | JWT | Listar municipios. Filtro `?provincia={codigo}`. |
+| `POST` | `/api/v1/municipios/` | 201 | JWT + SUPERADMIN | Crear municipio. |
+| `GET` | `/api/v1/municipios/{codigo}/` | 200 | JWT | Detalle de municipio. |
+| `PATCH` | `/api/v1/municipios/{codigo}/` | 200 | JWT + SUPERADMIN | Actualizar municipio. |
+| `DELETE` | `/api/v1/municipios/{codigo}/` | 204 | JWT + SUPERADMIN | Eliminar municipio. |
+| `GET` | `/api/v1/unidades-medida/` | 200 | JWT | Listar unidades de medida (Tabla IV, 62 unidades). |
+| `POST` | `/api/v1/unidades-medida/` | 201 | JWT + SUPERADMIN | Crear unidad de medida. |
+| `GET` | `/api/v1/unidades-medida/{codigo}/` | 200 | JWT | Detalle de unidad. |
+| `PATCH` | `/api/v1/unidades-medida/{codigo}/` | 200 | JWT + SUPERADMIN | Actualizar unidad. |
+| `DELETE` | `/api/v1/unidades-medida/{codigo}/` | 204 | JWT + SUPERADMIN | Eliminar unidad. |
+| `GET` | `/api/v1/monedas/` | 200 | JWT | Listar monedas ISO 4217 (Tabla II, 17 monedas). |
+| `POST` | `/api/v1/monedas/` | 201 | JWT + SUPERADMIN | Crear moneda. |
+| `GET` | `/api/v1/monedas/{codigo_iso}/` | 200 | JWT | Detalle de moneda. |
+| `PATCH` | `/api/v1/monedas/{codigo_iso}/` | 200 | JWT + SUPERADMIN | Actualizar moneda. |
+| `DELETE` | `/api/v1/monedas/{codigo_iso}/` | 204 | JWT + SUPERADMIN | Eliminar moneda. |
+| `GET` | `/api/v1/impuestos-adicionales/` | 200 | JWT | Listar impuestos adicionales (Tabla I, 39 códigos). |
+| `POST` | `/api/v1/impuestos-adicionales/` | 201 | JWT + SUPERADMIN | Crear impuesto adicional. |
+| `GET` | `/api/v1/impuestos-adicionales/{codigo}/` | 200 | JWT | Detalle de impuesto. |
+| `PATCH` | `/api/v1/impuestos-adicionales/{codigo}/` | 200 | JWT + SUPERADMIN | Actualizar impuesto. |
+| `DELETE` | `/api/v1/impuestos-adicionales/{codigo}/` | 204 | JWT + SUPERADMIN | Eliminar impuesto. |
+| `GET` | `/api/v1/formas-pago/` | 200 | JWT | Listar formas de pago (11 tipos). |
+| `POST` | `/api/v1/formas-pago/` | 201 | JWT + SUPERADMIN | Crear forma de pago. |
+| `GET` | `/api/v1/formas-pago/{codigo}/` | 200 | JWT | Detalle de forma de pago. |
+| `PATCH` | `/api/v1/formas-pago/{codigo}/` | 200 | JWT + SUPERADMIN | Actualizar forma de pago. |
+| `DELETE` | `/api/v1/formas-pago/{codigo}/` | 204 | JWT + SUPERADMIN | Eliminar forma de pago. |
+
+### 11.12 Webhooks
+
+**Autenticación:** API-Key (`Authorization: Api-Key <token>`).  
+El webhook usa HMAC (firma del payload) para garantizar integridad. El `secret` se devuelve solo en la creación.  
+Ver detalles de implementación en `docs/plan_webhook_snapshot.md`.
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/webhooks/` | 201 | API-Key | Crear webhook. Body: `nombre`, `url`, `eventos[]`. Devuelve `secret` una sola vez. |
+| `GET` | `/api/v1/webhooks/` | 200 | API-Key | Listar webhooks de la empresa. |
+| `GET` | `/api/v1/webhooks/{id}/` | 200 | API-Key | Detalle de webhook. |
+| `PATCH` | `/api/v1/webhooks/{id}/` | 200 | API-Key | Actualizar nombre, url, eventos, activo. |
+| `DELETE` | `/api/v1/webhooks/{id}/` | 204 | API-Key | Eliminar webhook. |
+| `GET` | `/api/v1/webhooks/{id}/entregas/` | 200 | API-Key | Listar entregas (historial de intentos), paginado. |
+
+### 11.13 Secuencias (Onboarding)
+
+**Autenticación:** API-Key con scope `empresa:onboarding`.  
+Registra los rangos de e-NCF asignados por la DGII para la empresa. Se usa al activar una empresa por primera vez.
+
+| Método | URL | Status | Permiso | Descripción |
+|--------|-----|--------|---------|-------------|
+| `POST` | `/api/v1/secuencias/` | 201 / 403 | API-Key (scope `empresa:onboarding`) | Registrar rangos de e-NCF. Body: `secuencias[]` con `tipo_ecf`, `desde`, `hasta`, `volumen`. Valida que el volumen total no exceda `plan.limite_comprobantes`. Bloquea si la empresa tiene deuda pendiente (`onboarding_bloqueado`). |
+
+Ejemplo de body:
+```json
+{
+  "secuencias": [
+    {"tipo_ecf": 31, "desde": "E310000000001", "hasta": "E310000010000", "volumen": 10000},
+    {"tipo_ecf": 32, "desde": "E320000000001", "hasta": "E320000005000", "volumen": 5000}
+  ]
+}
+```
+
+### 11.14 Códigos de error comunes (endpoints actuales)
 
 | Status | Cuándo | Ejemplo |
 |--------|--------|---------|
