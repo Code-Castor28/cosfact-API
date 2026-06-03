@@ -43,7 +43,7 @@ class ComprobanteCreateSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "encf", "estado", "creado_at", "actualizado_at",
             "codigo_seguridad_dgii", "xml_path",
-            "valor_pagar", "track_id_dgii",
+            "valor_pagar", "track_id_dgii", "idempotency_key",
         ]
 
     def validate(self, attrs):

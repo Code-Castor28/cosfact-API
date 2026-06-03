@@ -86,10 +86,12 @@ class Comprobante(models.Model):
     )
 
     # Prevención de doble emisión por retry del POS
+    # El POS envía este UUID en el header Idempotency-Key
     idempotency_key = models.UUIDField(
         unique=True,
-        default=uuid.uuid4,
-        help_text="UUID único por intento de emisión. El POS genera este valor.",
+        null=True,
+        blank=True,
+        help_text="UUID único por intento de emisión. Enviado por el POS en header Idempotency-Key.",
     )
 
     # ─── Datos DGII ───────────────────────────────────────────────────────────
