@@ -4,40 +4,40 @@ Este documento contiene la transcripción completa de todas las tablas de codifi
 
 ---
 
-## Tabla I. Codificación Tipos de Impuestos Adicionales
+# TABLA I. CODIFICACIÓN TIPOS DE IMPUESTOS ADICIONALES
 
-| Código | Tipo Impuesto | Abreviatura | Descripción | Tasa |
-|:---:|:---|:---:|---|:---:|
+| CÓDIGO | Tipo Impuesto | Tipo Impuesto (Abreviatura) | Descripción | Tasa |
+|--------|---------------|-----------------------------|-------------|------|
 | 001 | Propina Legal | Propina Legal | Propina Legal | 10% |
 | 002 | Contribución al Desarrollo de las Telecomunicaciones | CDT | Contribución al Desarrollo de las Telecomunicaciones Ley 153-98 Art. 45 | 2% |
 | 003 | Impuesto Selectivo al Consumo | ISC | Servicios Seguros en general | 16% |
-| 004 | | | Servicios de Telecomunicaciones | 10% |
-| 005 | Impuesto sobre el Primer Registro de Vehículos | | Expedición de la primera placa | 17% |
-| 006 | ISC Específico | | Cerveza | 632.58 |
-| 007 | | | Vinos de uva | 632.58 |
-| 008 | | | Vermut y demás vinos de uvas frescas | 632.58 |
-| 009 | | | Demás bebidas fermentadas | 632.58 |
-| 010 | | | Alcohol Etílico sin desnaturalizar (Mayor o igual a 80%) | 632.58 |
-| 011 | | | Alcohol Etílico sin desnaturalizar (inferior a 80%) | 632.58 |
-| 012 | | | Aguardientes de uva | 632.58 |
-| 013 | | | Whisky | 632.58 |
-| 014 | | | Ron y demás aguardientes de caña | 632.58 |
-| 015 | | | Gin y Ginebra | 632.58 |
-| 016 | | | Vodka | 632.58 |
-| 017 | | | Licores | 632.58 |
-| 018 | | | Los demás (Bebidas y Alcoholes) | 632.58 |
-| 019 | | | Cigarrillos que contengan tabaco cajetilla 20 unidades | 53.51 |
-| 020 | | | Los demás Cigarrillos que contengan 20 unidades | 53.51 |
-| 021 | | | Cigarrillos que contengan 10 unidades | 26.75 |
-| 022 | | | Los demás Cigarrillos que contengan 10 unidades | 26.75 |
-| 023 | Impuesto Selectivo al Consumo (Tasa AdValorem) | ISC AdValorem | Cerveza | 10% |
+| 004 | Impuesto sobre el Primer Registro de Vehículos (Primera Placa) | | Servicios de Telecomunicaciones | 10% |
+| 005 | Impuesto Selectivo al Consumo (Tasa Específica) | ISC Específico²² | Excepción de la primera placa | 17% |
+| 006 | Impuesto Selectivo al Consumo (Tasa Específica) | | Cerveza | 632.58 |
+| 007 | Impuesto Selectivo al Consumo (Tasa Específica) | | Vinos de uva | 632.58 |
+| 008 | Impuesto Selectivo al Consumo (Tasa Específica) | | Vermut y demás vinos de uvas frescas | 632.58 |
+| 009 | Impuesto Selectivo al Consumo (Tasa Específica) | | Demás bebidas fermentadas | 632.58 |
+| 010 | Impuesto Selectivo al Consumo (Tasa Específica) | | Alcohol Etílico sin desnaturalizar (Mayor o igual a 80%) | 632.58 |
+| 011 | Impuesto Selectivo al Consumo (Tasa Específica) | | Alcohol Etílico sin desnaturalizar (inferior a 80%) | 632.58 |
+| 012 | Impuesto Selectivo al Consumo (Tasa Específica) | | Aguardientes de uva | 632.58 |
+| 013 | Impuesto Selectivo al Consumo (Tasa Específica) | | Whisky | 632.58 |
+| 014 | Impuesto Selectivo al Consumo (Tasa Específica) | | Ron y demás aguardientes de caña | 632.58 |
+| 015 | Impuesto Selectivo al Consumo (Tasa Específica) | | Gin y Ginebra | 632.58 |
+| 016 | Impuesto Selectivo al Consumo (Tasa Específica) | | Vodka | 632.58 |
+| 017 | Impuesto Selectivo al Consumo (Tasa Específica) | | Licores | 632.58 |
+| 018 | Impuesto Selectivo al Consumo (Tasa Específica) | | Los demás (Bebidas y Alcoholes) | 632.58 |
+| 019 | Impuesto Selectivo al Consumo (Tasa Específica) | | Cigarrillos que contengan tabaco cajetilla 20 unidades | 53.51 |
+| 020 | Impuesto Selectivo al Consumo (Tasa Específica) | | Los demás Cigarrillos que contengan 20 unidades | 53.51 |
+| 021 | Impuesto Selectivo al Consumo (Tasa Específica) | | Cigarrillos que contengan 10 unidades | 26.75 |
+| 022 | Impuesto Selectivo al Consumo (Tasa Específica) | | Los demás Cigarrillos que contengan 10 unidades | 26.75 |
+| 023 | | | Cerveza | 10% |
 | 024 | | | Vinos de uva | 10% |
 | 025 | | | Vermut y demás vinos de uvas frescas | 10% |
 | 026 | | | Demás bebidas fermentadas | 10% |
 | 027 | | | Alcohol Etílico sin desnaturalizar (Mayor o igual a 80%) | 10% |
 | 028 | | | Alcohol Etílico sin desnaturalizar (inferior a 80%) | 10% |
 | 029 | | | Aguardientes de uva | 10% |
-| 030 | | | Whisky | 10% |
+| 030 | Impuesto Selectivo al Consumo (Tasa AdValorem) | ISC AdValorem | Whisky | 10% |
 | 031 | | | Ron y demás aguardientes de caña | 10% |
 | 032 | | | Gin y Ginebra | 10% |
 | 033 | | | Vodka | 10% |
@@ -47,8 +47,6 @@ Este documento contiene la transcripción completa de todas las tablas de codifi
 | 037 | | | Los demás Cigarrillos que contengan 20 unidades | 20% |
 | 038 | | | Cigarrillos que contengan 10 unidades | 20% |
 | 039 | | | Los demás Cigarrillos que contengan 10 unidades | 20% |
-
----
 
 ## Tabla II. Codificación Monedas
 
