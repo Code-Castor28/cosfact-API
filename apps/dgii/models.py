@@ -101,3 +101,7 @@ class DGIILog(models.Model):
 
     def delete(self, *args, **kwargs):
         raise ValidationError("Los registros de auditoría no pueden eliminarse. Retención legal 10 años.")
+
+
+# ─── Catálogos DGII ─────────────────────────────────────────────────────────
+from .catalogs.models import Provincia, Municipio, UnidadMedida, Moneda, ImpuestoAdicional, FormaPago  # noqa: F401, E501

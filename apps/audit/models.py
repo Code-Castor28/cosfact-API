@@ -147,19 +147,20 @@ class AuditLog(models.Model):
                 "Los registros de auditoría no pueden modificarse."
             )
 
-        # Calcular HMAC antes de guardar
-        # El id y creado_at no están disponibles antes del primer save,
-        # así que los calculamos con los datos disponibles.
+        super().save(*args, **kwargs)
+
         datos = {
+            "id": str(self.id),
             "empresa_id": str(self.empresa_id) if self.empresa_id else None,
             "usuario_id": str(self.usuario_id) if self.usuario_id else None,
             "accion": self.accion,
             "recurso": self.recurso,
             "recurso_id": self.recurso_id,
             "ip": self.ip,
+            "creado_at": str(self.creado_at),
         }
         self.signature = _calcular_firma(datos)
-        super().save(*args, **kwargs)
+        AuditLog.objects.filter(pk=self.pk).update(signature=self.signature)
 
     def delete(self, *args, **kwargs):
         raise ValidationError(
