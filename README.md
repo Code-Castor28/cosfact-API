@@ -1,14 +1,14 @@
 # DerejFact API
-<p align="center">
-  <img src="img-docs/logo-docs.png" alt="Banner del Proyecto" width="100%">
-</p>
+
 [![Deploy a Producción](https://github.com/DerejSoft/derejfactAPI/actions/workflows/deploy.yml/badge.svg)](https://github.com/DerejSoft/derejfactAPI/actions/workflows/deploy.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)
 ![Django](https://img.shields.io/badge/Django-5.0-092E20?logo=django)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-37814A?logo=celery)
 ![Estado](https://img.shields.io/badge/Fases-31%2F31%20%E2%9C%85-brightgreen)
-
+<p align="center">
+  <img src="img-docs/logo-docs.png" alt="Banner del Proyecto" width="100%">
+</p>
 **Middleware multi-tenant de facturación electrónica (e-CF) para la República Dominicana.**  
 API puente asíncrona, segura y multi-tenant que conecta sistemas POS con la DGII.
 
