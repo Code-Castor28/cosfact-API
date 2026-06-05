@@ -1,5 +1,7 @@
 # DerejFact API
-
+<p align="center">
+  <img src="img-docs/logo-docs.png" alt="Banner del Proyecto" width="100%">
+</p>
 [![Deploy a Producción](https://github.com/DerejSoft/derejfactAPI/actions/workflows/deploy.yml/badge.svg)](https://github.com/DerejSoft/derejfactAPI/actions/workflows/deploy.yml)
 ![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python)
 ![Django](https://img.shields.io/badge/Django-5.0-092E20?logo=django)
