@@ -52,3 +52,5 @@ certificados/
 *.p12
 *.crt
 *.key
+.agents/
+skills-lock.json
