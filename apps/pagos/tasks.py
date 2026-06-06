@@ -129,6 +129,7 @@ def generar_pagos_automaticos():
                     metodo_pago='',
                     referencia='',
                     estado=Pago.ESTADO_PENDIENTE,
+                    fecha_corte=suscripcion.fecha_corte,
                 )
 
             logger.info(

@@ -78,10 +78,10 @@ class PagoViewSet(viewsets.ModelViewSet):
             ).exists()
             if es_primer_pago and suscripcion.fecha_corte:
                 monto = self._calcular_monto_prorrateado(suscripcion)
-                serializer.save(monto=monto)
+                serializer.save(monto=monto, fecha_corte=suscripcion.fecha_corte)
                 return
 
-        serializer.save()
+        serializer.save(fecha_corte=suscripcion.fecha_corte)
 
     def _calcular_monto_prorrateado(self, suscripcion):
         fecha_inicio = suscripcion.fecha_inicio

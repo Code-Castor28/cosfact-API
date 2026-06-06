@@ -3,6 +3,7 @@ from typing import Any, ClassVar
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator
 
 
 class Pago(models.Model):
@@ -69,6 +70,11 @@ class Pago(models.Model):
         max_length=10, choices=MONEDAS, default=MONEDA_DOP)
     tipo_pago = models.CharField(
         max_length=20, choices=TIPOS_PAGO, default=TIPO_RENOVACION)
+    fecha_corte = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        validators=[MaxValueValidator(30)],
+        help_text="Día fijo de facturación (1-30). Se copia de la suscripción al generar el pago.",
+    )
     metodo_pago = models.CharField(max_length=20, choices=METODOS_PAGO, blank=True)
     referencia = models.CharField(max_length=100, blank=True)
     fecha_pago = models.DateTimeField(auto_now_add=True)
