@@ -8,8 +8,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='pago',
-            name='fecha_corte',
+        migrations.RunSQL(
+            "ALTER TABLE pagos DROP COLUMN IF EXISTS fecha_corte;",
+            migrations.RunSQL.noop,
         ),
     ]
