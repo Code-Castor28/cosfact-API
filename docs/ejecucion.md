@@ -15,8 +15,8 @@
 | Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
 | Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
 | Fase 3 — Deuda Técnica | ✅ 6/6 |
-| Fase 4 — Correcciones de Integración | 📋 0/1 |
-| **Total** | **✅ 31/32** |
+| Fase 4 — Correcciones de Integración | 📋 0/2 |
+| **Total** | **✅ 31/33** |
 
 ---
 
@@ -774,7 +774,7 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-## Fase 4 — Correcciones de Integración (0/1)
+## Fase 4 — Correcciones de Integración (0/2)
 > **Objetivo:** Cerrar gaps de integración entre servicios existentes donde un componente produce un resultado pero otro no lo consume. No se crea lógica nueva, solo se conectan piezas ya escritas.
 
 - [ ] 4.1 Disparar `enviar_recibo_pago` al confirmar un pago
@@ -794,6 +794,55 @@ Fase 0 (Bugs de seguridad existentes)
   ```
 
   **Impacto:** 2 líneas agregadas. Sin breaking changes.
+
+- [ ] 4.2 Endpoint REST `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
+
+  **Problema:** El panel custom no tiene forma de disparar tareas como `generar_pagos_automaticos` sin esperar al cron de Beat o usar el shell manualmente.
+
+  **Especificación:**
+  ```
+  POST /api/v1/tasks/run/
+  Authorization: Bearer <token-superadmin>
+  Content-Type: application/json
+
+  {"task": "pagos.generar_pagos_automaticos"}
+  ```
+  ```json
+  {
+    "status": "dispatched",
+    "task": "pagos.generar_pagos_automaticos",
+    "task_id": "a1b2c3d4-..."
+  }
+  ```
+
+  **Archivos a crear:**
+
+  | Archivo | Contenido |
+  |---------|-----------|
+  | `apps/tasks/views.py` | `RunTaskView` con `post()` que recibe `task`, valida whitelist, hace `.delay()` |
+  | `apps/tasks/serializers.py` | `RunTaskSerializer` con campo `task` + validación contra whitelist |
+  | `apps/tasks/urls.py` | Ruta `tasks/run` |
+  | `apps/tasks/__init__.py` | Package vacío |
+
+  **Archivos a modificar:**
+
+  | Archivo | Cambio |
+  |---------|--------|
+  | `core/urls.py` | Incluir `apps/tasks.urls` bajo `api/v1/` |
+  | `core/settings/base.py` | Agregar `tasks` a `INSTALLED_APPS` |
+
+  **Whitelist de tareas permitidas:**
+  ```python
+  TASKS_WHITELIST = {
+      "pagos.generar_pagos_automaticos",
+      "pagos.notificar_pagos_proximos",
+      "dgii.reintentar_contingencia",
+      "notificaciones.alertar_balance_bajo",
+      "notificaciones.alertar_certificado_vencimiento",
+  }
+  ```
+
+  **Seguridad:** Solo superadmin (`IsSuperAdmin`). Solo tareas en whitelist.
 
 ---
 

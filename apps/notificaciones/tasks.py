@@ -24,7 +24,7 @@ def enviar_recibo_pago(pago_id):
         return
 
     empresa = pago.empresa
-    destinatario = empresa.email
+    destinatario = empresa.correo
 
     if not destinatario:
         logger.warning(
@@ -78,7 +78,7 @@ def alertar_balance_bajo():
             continue
 
         empresa = paquete.empresa
-        destinatario = empresa.email
+        destinatario = empresa.correo
         if not destinatario:
             continue
 
@@ -119,7 +119,7 @@ def alertar_certificado_vencimiento():
 
     for cert in certificados:
         empresa = cert.empresa
-        destinatario = empresa.email
+        destinatario = empresa.correo
         if not destinatario:
             continue
 
@@ -161,7 +161,7 @@ def alertar_suscripcion_vencimiento():
 
     for suscripcion in suscripciones:
         empresa = suscripcion.empresa
-        destinatario = empresa.email
+        destinatario = empresa.correo
         if not destinatario:
             continue
 

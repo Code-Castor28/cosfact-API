@@ -14,8 +14,8 @@
 | Fase 1c — Parches de Validación + Blindaje | 4 | 4 |
 | Fase 2 — Webhooks y Notificaciones | 9 | 9 |
 | Fase 3 — Deuda Técnica | 6 | 6 |
-| Fase 4 — Correcciones de Integración | 0 | 1 |
-| **Total** | **31** | **32** |
+| Fase 4 — Correcciones de Integración | 0 | 2 |
+| **Total** | **31** | **33** |
 
 ---
 
@@ -62,6 +62,7 @@
 
 ### Fase 4 — Correcciones de Integración
 - [ ] 4.1 Disparar `enviar_recibo_pago` desde `_confirmar_pago_internamente`
+- [ ] 4.2 Endpoint `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
 
 ### Fase 3 — Deuda Técnica
 - ✅ 3.1 `CleanModelSerializer` con `partial=True`
@@ -86,3 +87,4 @@
 | 2026-06-02 | Fase 3 | 3.1–3.3 | CleanModelSerializer partial=True, HMAC audit con id+creado_at, Idempotency Key desde header del POS |
 | 2026-06-02 | Fase 3 | 3.4–3.6 | Tests (sequences, subscriptions, webhooks), docs certecf+USUARIO_EMPRESA, Catálogos DGII (6 modelos + admin + seed command) |
 | 2026-06-06 | Fase 4 | 4.1 | Plan y corrección: `enviar_recibo_pago.delay(pago.id)` desde `_confirmar_pago_internamente` |
+| 2026-06-06 | Fase 4 | 4.2 | Plan: endpoint `POST /api/v1/tasks/run/` para disparar tareas Celery manualmente |
