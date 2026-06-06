@@ -1,0 +1,23 @@
+project-includes = ["**/*.py"]
+project-excludes = [
+    "**/__pycache__",
+    "**/*venv/**",
+    "**/migrations/**",
+    "**/.git/**",
+]
+search-path = [".", "apps/"]
+site-package-path = ["venv/Lib/site-packages"]
+python-platform = "linux"
+python-version = "3.12"
+
+preset = "basic"
+
+replace-imports-with-any = [
+    "django.*",
+    "celery.*",
+    "rest_framework.*",
+]
+
+ignore-missing-imports = [
+    "dateutil.*",
+]

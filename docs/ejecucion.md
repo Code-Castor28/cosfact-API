@@ -15,7 +15,8 @@
 | Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
 | Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
 | Fase 3 — Deuda Técnica | ✅ 6/6 |
-| **Total** | **✅ 31/31** |
+| Fase 4 — Correcciones de Integración | 📋 0/1 |
+| **Total** | **✅ 31/32** |
 
 ---
 
@@ -771,5 +772,30 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-*Versión: 2.0.0 — Plan reestructurado el 2 de junio de 2026*
+---
+
+## Fase 4 — Correcciones de Integración (0/1)
+> **Objetivo:** Cerrar gaps de integración entre servicios existentes donde un componente produce un resultado pero otro no lo consume. No se crea lógica nueva, solo se conectan piezas ya escritas.
+
+- [ ] 4.1 Disparar `enviar_recibo_pago` al confirmar un pago
+
+  **Problema:** `_confirmar_pago_internamente` en `apps/pagos/views.py:152` confirma el pago (actualiza suscripción, crea paquete e historial) pero nunca invoca `enviar_recibo_pago.delay(pago.id)`. La tarea y la plantilla HTML existen, pero el recibo nunca se envía.
+
+  **Diagnóstico:**
+  - `notificaciones.tasks.enviar_recibo_pago(pago_id)` — definida y funcional
+  - `notificaciones/templates/notificaciones/pago_confirmado.html` — plantilla lista
+  - Ningún `.delay()` ni `.apply_async()` apunta a esta tarea en todo el código
+
+  **Corrección en `apps/pagos/views.py`:**
+  ```python
+  from notificaciones.tasks import enviar_recibo_pago
+
+  enviar_recibo_pago.delay(pago.id)
+  ```
+
+  **Impacto:** 2 líneas agregadas. Sin breaking changes.
+
+---
+
+*Versión: 2.1.0 — Añadida Fase 4 el 6 de junio de 2026*
 *Basado en: Hallazgos del análisis de implementación vs ARCHITECTURE.md*

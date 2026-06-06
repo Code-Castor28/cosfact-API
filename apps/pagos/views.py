@@ -22,7 +22,7 @@ from .serializers import (
 from .permissions import IsSuperAdmin
 from .pdf import generar_pdf_a4, generar_pdf_80mm
 from subscriptions.models import Suscripcion, PaqueteComprobantes
-
+from notificaciones.tasks import enviar_recibo_pago
 
 class PagoViewSet(viewsets.ModelViewSet):
     queryset = Pago.objects.select_related(
@@ -257,6 +257,9 @@ class PagoViewSet(viewsets.ModelViewSet):
                     monto_pagado=pago.monto,
                     comprobantes_asignados=pago.plan.limite_comprobantes,
                 )
+
+        
+        enviar_recibo_pago.delay(pago.id)
 
         serializer = PagoDetailSerializer(pago)
         return Response({

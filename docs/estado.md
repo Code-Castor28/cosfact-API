@@ -14,7 +14,8 @@
 | Fase 1c — Parches de Validación + Blindaje | 4 | 4 |
 | Fase 2 — Webhooks y Notificaciones | 9 | 9 |
 | Fase 3 — Deuda Técnica | 6 | 6 |
-| **Total** | **31** | **31** |
+| Fase 4 — Correcciones de Integración | 0 | 1 |
+| **Total** | **31** | **32** |
 
 ---
 
@@ -59,6 +60,9 @@
 
 ## 🔄 En Progreso
 
+### Fase 4 — Correcciones de Integración
+- [ ] 4.1 Disparar `enviar_recibo_pago` desde `_confirmar_pago_internamente`
+
 ### Fase 3 — Deuda Técnica
 - ✅ 3.1 `CleanModelSerializer` con `partial=True`
 - ✅ 3.2 HMAC con `id` y `creado_at`
@@ -81,3 +85,4 @@
 | 2026-06-02 | Fase 2 | 2.1–2.9 | Webhooks CRUD + HMAC + servicios, disparo desde DGII, notificaciones (4 templates + tasks), backoff con jitter, Celery Beat nocturno CONTINGENCIA |
 | 2026-06-02 | Fase 3 | 3.1–3.3 | CleanModelSerializer partial=True, HMAC audit con id+creado_at, Idempotency Key desde header del POS |
 | 2026-06-02 | Fase 3 | 3.4–3.6 | Tests (sequences, subscriptions, webhooks), docs certecf+USUARIO_EMPRESA, Catálogos DGII (6 modelos + admin + seed command) |
+| 2026-06-06 | Fase 4 | 4.1 | Plan y corrección: `enviar_recibo_pago.delay(pago.id)` desde `_confirmar_pago_internamente` |
