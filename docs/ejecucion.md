@@ -15,8 +15,8 @@
 | Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
 | Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
 | Fase 3 — Deuda Técnica | ✅ 6/6 |
-| Fase 4 — Correcciones de Integración | 📋 0/2 |
-| **Total** | **✅ 31/33** |
+| Fase 4 — Correcciones de Integración | 📋 0/3 |
+| **Total** | **✅ 31/34** |
 
 ---
 
@@ -774,7 +774,7 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-## Fase 4 — Correcciones de Integración (0/2)
+## Fase 4 — Correcciones de Integración (0/3)
 > **Objetivo:** Cerrar gaps de integración entre servicios existentes donde un componente produce un resultado pero otro no lo consume. No se crea lógica nueva, solo se conectan piezas ya escritas.
 
 - [ ] 4.1 Disparar `enviar_recibo_pago` al confirmar un pago
@@ -843,6 +843,53 @@ Fase 0 (Bugs de seguridad existentes)
   ```
 
   **Seguridad:** Solo superadmin (`IsSuperAdmin`). Solo tareas en whitelist.
+
+- [ ] 4.3 Endpoints de descarga de PDF (`pdf/a4/` y `pdf/80mm/`)
+
+  **Descripción:** Endpoints existentes para generar e imprimir comprobantes de pago en PDF desde el panel. No requieren lógica nueva, solo documentación formal en el plan de ejecución.
+
+  **Endpoints:**
+
+  | Método | URL | Descripción |
+  |--------|-----|-------------|
+  | `GET` | `/api/v1/pagos/{id}/pdf/a4/` | PDF tamaño carta con detalle completo del pago |
+  | `GET` | `/api/v1/pagos/{id}/pdf/80mm/` | PDF tamaño ticket 80mm (formato POS) |
+
+  **Implementación actual en `apps/pagos/views.py:320-341`:**
+  ```python
+  @action(detail=True, methods=['get'], url_path='pdf/a4')
+  def pdf_a4(self, request, pk=None):
+      pago = self.get_object()
+      pdf_buffer = generar_pdf_a4(pago)
+      return FileResponse(
+          pdf_buffer, content_type='application/pdf',
+          as_attachment=True,
+          filename=f"comprobante-{pago.id}-a4.pdf",
+      )
+
+  @action(detail=True, methods=['get'], url_path='pdf/80mm')
+  def pdf_80mm(self, request, pk=None):
+      pago = self.get_object()
+      pdf_buffer = generar_pdf_80mm(pago)
+      return FileResponse(
+          pdf_buffer, content_type='application/pdf',
+          as_attachment=True,
+          filename=f"comprobante-{pago.id}-80mm.pdf",
+      )
+  ```
+
+  **Dependencia:** `reportlab==4.2.0` (en `requirements.txt`). Si no está instalada, los endpoints retornan error 500.
+
+  **Contenido del PDF A4:**
+  - Encabezado: "COMPROBANTE DE PAGO", recibo No., empresa y RNC
+  - Detalle: plan, ciclo, tipo, monto, método de pago, referencia, estado, confirmado por, fechas
+  - Pie: ID interno + nota legal
+
+  **Contenido del PDF 80mm:**
+  - Formato ticket POS con fuente Courier (monoespaciada)
+  - Mismos datos que A4 pero en layout compacto vertical
+
+  **Seguridad:** Solo superadmin (`IsSuperAdmin`). El pago debe existir (cualquier estado).
 
 ---
 
