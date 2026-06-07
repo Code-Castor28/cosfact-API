@@ -41,16 +41,37 @@ class Comprobante(models.Model):
     ESTADO_ANULADO = "ANULADO"
     ESTADO_ERROR = "ERROR"
     ESTADO_CONTINGENCIA = "CONTINGENCIA"
+    ESTADO_EMITIDO = "EMITIDO"
 
     ESTADOS = [
         (ESTADO_BORRADOR, "Borrador"),
         (ESTADO_PENDIENTE, "Pendiente de envío"),
         (ESTADO_PROCESANDO, "Procesando en DGII"),
+        (ESTADO_EMITIDO, "Emitido"),
         (ESTADO_ACEPTADO, "Aceptado por DGII"),
         (ESTADO_RECHAZADO, "Rechazado por DGII"),
         (ESTADO_ANULADO, "Anulado"),
         (ESTADO_ERROR, "Error técnico"),
         (ESTADO_CONTINGENCIA, "Contingencia"),
+    ]
+
+    # ─── Estados DGII ─────────────────────────────────────────────────────────
+    ESTADO_DGII_SIN_ENVIAR = "SIN_ENVIAR"
+    ESTADO_DGII_ENVIADO = "ENVIADO"
+    ESTADO_DGII_ACEPTADO = "ACEPTADO"
+    ESTADO_DGII_RECHAZADO = "RECHAZADO"
+    ESTADO_DGII_CONTINGENCIA = "CONTINGENCIA"
+    ESTADO_DGII_REINTENTANDO = "REINTENTANDO"
+    ESTADO_DGII_ERROR_RED = "ERROR_RED"
+
+    ESTADOS_DGII_CHOICES = [
+        (ESTADO_DGII_SIN_ENVIAR, "Sin enviar"),
+        (ESTADO_DGII_ENVIADO, "Enviado a DGII"),
+        (ESTADO_DGII_ACEPTADO, "Aceptado por DGII"),
+        (ESTADO_DGII_RECHAZADO, "Rechazado por DGII"),
+        (ESTADO_DGII_CONTINGENCIA, "Contingencia"),
+        (ESTADO_DGII_REINTENTANDO, "Reintentando"),
+        (ESTADO_DGII_ERROR_RED, "Error de red"),
     ]
 
     # Estados que hacen el comprobante inmutable
@@ -137,6 +158,10 @@ class Comprobante(models.Model):
 
     # Respuesta DGII
     estado = models.CharField(max_length=15, choices=ESTADOS, default=ESTADO_BORRADOR)
+    estado_dgii = models.CharField(
+        max_length=15, choices=ESTADOS_DGII_CHOICES, default=ESTADO_DGII_SIN_ENVIAR,
+    )
+    celery_task_id = models.CharField(max_length=255, blank=True)
     track_id_dgii = models.CharField(max_length=255, blank=True)
     codigo_seguridad_dgii = models.CharField(max_length=255, blank=True)
 
@@ -234,14 +259,25 @@ class Comprobante(models.Model):
     # ─── Máquina de estados ────────────────────────────────────────────────────
 
     TRANSICIONES_PERMITIDAS = {
-        "BORRADOR":    {"PENDIENTE"},
-        "PENDIENTE":   {"PROCESANDO"},
+        "BORRADOR":    {"PENDIENTE", "EMITIDO"},
+        "PENDIENTE":   {"PROCESANDO", "EMITIDO"},
         "PROCESANDO":  {"ACEPTADO", "RECHAZADO", "ERROR", "CONTINGENCIA"},
+        "EMITIDO":     {"ANULADO", "CONTINGENCIA"},
         "ACEPTADO":    {"ANULADO"},
         "RECHAZADO":   {"BORRADOR"},
         "ERROR":       {"PENDIENTE"},
         "CONTINGENCIA":{"PENDIENTE"},
         "ANULADO":     set(),
+    }
+
+    TRANSICIONES_ESTADO_DGII = {
+        "SIN_ENVIAR":   {"ENVIADO"},
+        "ENVIADO":      {"ACEPTADO", "RECHAZADO", "CONTINGENCIA", "ERROR_RED"},
+        "RECHAZADO":    {"REINTENTANDO"},
+        "CONTINGENCIA": {"REINTENTANDO"},
+        "ERROR_RED":    {"REINTENTANDO"},
+        "REINTENTANDO": {"ENVIADO"},
+        "ACEPTADO":     set(),
     }
 
     # ─── Inmutabilidad ────────────────────────────────────────────────────────
@@ -254,7 +290,7 @@ class Comprobante(models.Model):
         """
         if self.pk:
             try:
-                original = Comprobante.objects.values("estado").get(pk=self.pk)
+                original = Comprobante.objects.values("estado", "estado_dgii").get(pk=self.pk)
                 if original["estado"] in self.ESTADOS_INMUTABLES:
                     raise ValidationError(
                         f"No se puede modificar un comprobante en estado "
@@ -266,6 +302,13 @@ class Comprobante(models.Model):
                         raise ValidationError(
                             f"Transición inválida: "
                             f"{original['estado']} -> {self.estado}"
+                        )
+                if self.estado_dgii != original["estado_dgii"]:
+                    if self.estado_dgii not in self.TRANSICIONES_ESTADO_DGII.get(
+                            original["estado_dgii"], set()):
+                        raise ValidationError(
+                            f"Transición inválida de estado_dgii: "
+                            f"{original['estado_dgii']} -> {self.estado_dgii}"
                         )
             except Comprobante.DoesNotExist:
                 pass

@@ -41,7 +41,8 @@ class ComprobanteCreateSerializer(serializers.ModelSerializer):
         model = Comprobante
         fields = "__all__"
         read_only_fields = [
-            "id", "encf", "estado", "creado_at", "actualizado_at",
+            "id", "encf", "estado", "estado_dgii", "celery_task_id",
+            "creado_at", "actualizado_at",
             "codigo_seguridad_dgii", "xml_path",
             "valor_pagar", "track_id_dgii", "idempotency_key",
         ]
