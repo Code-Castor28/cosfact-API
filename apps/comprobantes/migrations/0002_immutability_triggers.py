@@ -113,11 +113,13 @@ def _run_if_postgres(sql, reverse_sql):
 
     def forward(apps, schema_editor):
         if connection.vendor == "postgresql":
-            schema_editor.execute(sql)
+            with connection.cursor() as cursor:
+                cursor.execute(sql)
 
     def backward(apps, schema_editor):
         if connection.vendor == "postgresql":
-            schema_editor.execute(reverse_sql)
+            with connection.cursor() as cursor:
+                cursor.execute(reverse_sql)
 
     return migrations.RunPython(forward, backward)
 
