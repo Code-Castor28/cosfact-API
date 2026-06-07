@@ -7,6 +7,7 @@ import xmlsec
 
 def sign_xml(xml_bytes: bytes, cert_path: str, cert_pin: str) -> bytes:
     root = etree.fromstring(xml_bytes)
+    xmlsec.tree.add_ids(root, ["Id"])
 
     signature_node = xmlsec.template.create(
         root,
@@ -19,7 +20,7 @@ def sign_xml(xml_bytes: bytes, cert_path: str, cert_pin: str) -> bytes:
     ref = xmlsec.template.add_reference(
         signature_node,
         xmlsec.Transform.SHA256,
-        uri="",
+        uri="#ECF",
     )
     xmlsec.template.add_transform(ref, xmlsec.Transform.ENVELOPED)
 
@@ -27,7 +28,8 @@ def sign_xml(xml_bytes: bytes, cert_path: str, cert_pin: str) -> bytes:
     xmlsec.template.add_x509_data(key_info)
 
     ctx = xmlsec.SignatureContext()
-    key = xmlsec.Key.from_file(cert_path, xmlsec.KeyFormat.PKCS12, cert_pin)
+    key_format = getattr(xmlsec.KeyFormat, "PKCS12_PEM", getattr(xmlsec.KeyFormat, "PKCS12", None))
+    key = xmlsec.Key.from_file(cert_path, key_format, cert_pin)
     ctx.key = key
     ctx.sign(signature_node)
 

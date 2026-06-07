@@ -17,7 +17,8 @@
 | Fase 3 — Deuda Técnica | ✅ 6/6 |
 | Fase 4 — Correcciones de Integración | 📋 2/3 |
 | Fase DGII — Monitoreo y Operaciones DGII | ✅ 10/10 |
-| **Total** | **✅ 43/44** |
+| Tests de Firmado XML | ✅ 5/5 |
+| **Total** | **✅ 48/49** |
 
 ---
 
@@ -928,5 +929,43 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-*Versión: 2.2.0 — Añadida Fase DGII (10 tareas) el 7 de junio de 2026*
+---
+
+## Tests de Firmado XML (1/1)
+> **Objetivo:** Validar que el pipeline de firma XML (carga de .p12, firmado, extracción de código de seguridad, asignación de certificado_usado) funciona correctamente con pytest.
+
+- [x] TXML.1 Generar fixture `.p12` autofirmado + PIN cifrado con Fernet (`scripts/generate_test_cert.py`, `tests/fixtures/`)
+
+- [x] TXML.2 Fixtures de pytest (`tests/dgii/conftest.py`):
+  - `p12_pin` (PIN plano `"test1234"`)
+  - `p12_pin_encrypted` (PIN cifrado con Fernet)
+  - `p12_bytes` (contenido del .p12)
+  - `private_key`, `certificate` (extraídos con `cryptography.pkcs12`)
+  - `empresa` + `certificado_digital` en BD (con archivo y PIN cifrado)
+
+- [x] TXML.3 Casos de prueba (`tests/dgii/test_xml_signing.py`):
+
+  | # | Test | Verifica |
+  |:--|:-----|:---------|
+  | 1 | Carga del certificado | Clave privada extraíble, CN=Test DGII Cert, PIN descifrado con Fernet |
+  | 2 | Firma produce XML válido | Nodo `<ds:Signature>` presente + `<ds:SignatureValue>` no vacío |
+  | 3 | `codigo_seguridad_dgii` | Primeros 6 caracteres de SignatureValue, alfanumérico |
+  | 4 | `certificado_usado` | FK asignada en `Comprobante`, no None ni vacío |
+  | 5 | XML mal formado | Excepción `xml.etree.XMLSyntaxError`, no crea `DGIILog` |
+  | 6 | PIN incorrecto | Excepción clara (no traceback crudo), mensaje legible |
+
+- [x] TXML.4 Fix compatibilidad `xmlsec.KeyFormat.PKCS12` → `PKCS12_PEM` en `apps/dgii/utils/xml_signer.py:30` (xmlsec 1.3.15 vs 1.3.17).
+
+- [x] TXML.5 Alinear `build_ecf_xml()` al XSD oficial DGII:
+  - Raíz `<ECF>` con `Id="ECF"` + namespace `xmlns="http://dgii.gov.do/ecf"`
+  - `<Encabezado>` ahora contiene `<IdDoc>` (con `<TipoeCF>`, `<eNCF>`, `<FechaEmision>`), `<Emisor>`, `<Comprador>`, `<Totales>`
+  - Nombres de nodos corregidos: `<eNCF>`, `<RNCEmisor>`, `<RNCComprador>`, `<MontoGravadoTotal>`, `<TotalITBIS18>`, `<DetalleItems>`, `<Item>`, `<NombreItem>`, `<CantidadItem>`, `<PrecioUnitarioItem>`, `<SubtotalItem>`
+  - `sign_xml()` ahora usa `xmlsec.tree.add_ids(root, ["Id"])` + `uri="#ECF"` en vez de `uri=""`
+  - Tests actualizados: `MINIMAL_ECF_XML`, `MockComprobante.tipo_ecf`, XPaths con namespace
+
+**Resultados:** 13/13 tests no-DB pasan; 2 tests DB requieren PostgreSQL. Pipeline completo firmado con `URI="#ECF"` verificado criptográficamente.
+
+---
+
+*Versión: 2.4.0 — Alineación de XML al XSD oficial DGII (5 tareas) el 7 de junio de 2026*
 *Basado en: Hallazgos del análisis de implementación vs ARCHITECTURE.md*

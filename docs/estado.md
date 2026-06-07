@@ -16,7 +16,8 @@
 | Fase 3 — Deuda Técnica | 6 | 6 |
 | Fase 4 — Correcciones de Integración | 2 | 3 |
 | Fase DGII — Monitoreo y Operaciones DGII | 10 | 10 |
-| **Total** | **43** | **44** |
+| Tests de Firmado XML | 5 | 5 |
+| **Total** | **48** | **49** |
 
 ---
 
@@ -86,6 +87,12 @@
 - ✅ 3.5 Documentar `certecf` + `USUARIO_EMPRESA`
 - ✅ 3.6 Catálogos DGII como modelos editables vía admin
 
+### Tests de Firmado XML
+- ✅ TXML.1 Script generación .p12 autofirmado + PIN cifrado
+- ✅ TXML.2 Fixtures pytest (conftest.py): certificado, empresa, PIN Fernet
+- ✅ TXML.3 Casos de prueba: carga, firma, código seguridad, certificado usado, XML mal formado, PIN incorrecto
+- ✅ TXML.4 Fix `xmlsec.KeyFormat.PKCS12` → `PKCS12_PEM` (compatibilidad xmlsec 1.3.15 ↔ 1.3.17)
+
 ---
 
 ## Historial de Avance
@@ -106,3 +113,5 @@
 | 2026-06-07 | Fase DGII | — | Fase DGII creada con 10 tareas: monitoreo, consulta, reintento y emisión directa contra DGII. Separación `estado`/`estado_dgii` |
 | 2026-06-07 | Fase DGII | 1–10 | Implementación completa: modelos + migraciones + cliente DGII + servicios + tasks + serializers + views + rutas + admin |
 | 2026-06-07 | Fase 0.7 | Fixes | Arreglo de 7 fallos + 1 error en tests de secuencias e-NCF: `maximo_asignado` → `PositiveBigIntegerField`, `services.py` persiste `bloqueado=True` al agotar rango, tests actualizados a formato 13-char DGII |
+| 2026-06-07 | Tests XML | TXML.1–4 | Tests de firmado XML con .p12 autofirmado: fixtures pytest, 10 tests pasan (2 DB-dependientes), fix `xmlsec.KeyFormat.PKCS12` → `PKCS12_PEM` (compatibilidad 1.3.15 ↔ 1.3.17) |
+| 2026-06-07 | Tests XML | TXML.5 | Alineación de `build_ecf_xml()` al XSD oficial DGII: `Id="ECF"`, namespace `http://dgii.gov.do/ecf`, nombres de nodos corregidos, `sign_xml()` con `add_ids()` + `URI="#ECF"`, 13/13 tests no-DB pasan. |
