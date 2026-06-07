@@ -87,10 +87,37 @@ def _save_xml(xml_bytes: bytes, path: str) -> str:
     return hashlib.sha256(xml_bytes).hexdigest()
 
 
+def _ejecutar_envio(comprobante: Comprobante) -> tuple[dict, int]:
+    """
+    Lógica pura de XML + firma + envío HTTP a DGII.
+    No toca estados ni transacciones.
+    Retorna (respuesta_dict, duracion_ms).
+    """
+    detalles = list(comprobante.detalles.all())
+    xml_bytes = build_ecf_xml(comprobante, detalles)
+    cert_path = _cert_path_for_empresa(comprobante.empresa)
+    cert_pin = _get_cert_pin(comprobante.empresa)
+    xml_firmado = sign_xml(xml_bytes, cert_path, cert_pin)
+
+    xml_path = _xml_path_for_comprobante(comprobante)
+    xml_hash = _save_xml(xml_firmado, xml_path)
+
+    with transaction.atomic():
+        c = Comprobante.objects.select_for_update().get(pk=comprobante.id)
+        c.xml_path = xml_path
+        c.xml_hash = xml_hash
+        c.xml_version = "1.0"
+        c.save(update_fields=["xml_path", "xml_hash", "xml_version", "actualizado_at"])
+
+    client = DgiiClient(comprobante.empresa)
+    respuesta = client.enviar_ecf(xml_firmado)
+    return respuesta, client.timeout
+
+
 def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
     """
-    Emite un e-CF: construye XML, firma, envia a DGII y actualiza estado.
-    Si hay fallo tecnico, pone CONTINGENCIA y lanza excepcion para reintento.
+    Emite un e-CF contra DGII.
+    Maneja estado y estado_dgii según la tabla de decisión.
     """
     with transaction.atomic():
         comprobante = (
@@ -100,13 +127,14 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
             .get(pk=comprobante_id)
         )
 
-        if comprobante.estado in (Comprobante.ESTADO_ACEPTADO, Comprobante.ESTADO_ANULADO):
+        if comprobante.estado_dgii == Comprobante.ESTADO_DGII_ACEPTADO:
             return comprobante
 
-        if comprobante.estado == Comprobante.ESTADO_RECHAZADO and not forzar_reintento:
+        if comprobante.estado_dgii == Comprobante.ESTADO_DGII_RECHAZADO and not forzar_reintento:
             return comprobante
 
         estado_anterior = comprobante.estado
+        estado_dgii_anterior = comprobante.estado_dgii
 
         if not comprobante.encf:
             comprobante.encf = obtener_proximo_encf(
@@ -115,67 +143,61 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
                 comprobante=comprobante,
             )
 
-        comprobante.estado = Comprobante.ESTADO_PROCESANDO
-        comprobante.save(update_fields=["encf", "estado", "actualizado_at"])
+        comprobante.estado = Comprobante.ESTADO_EMITIDO
+        comprobante.estado_dgii = Comprobante.ESTADO_DGII_ENVIADO
+        comprobante.save(update_fields=["encf", "estado", "estado_dgii", "actualizado_at"])
 
         _crear_evento(comprobante, estado_anterior,
                       comprobante.estado, "Inicio de envio DGII")
 
-    xml_bytes = build_ecf_xml(comprobante, list(comprobante.detalles.all()))
-    cert_path = _cert_path_for_empresa(comprobante.empresa)
-    cert_pin = _get_cert_pin(comprobante.empresa)
-    xml_firmado = sign_xml(xml_bytes, cert_path, cert_pin)
-
-    xml_path = _xml_path_for_comprobante(comprobante)
-    xml_hash = _save_xml(xml_firmado, xml_path)
-
-    with transaction.atomic():
-        comprobante = Comprobante.objects.select_for_update().get(pk=comprobante_id)
-        comprobante.xml_path = xml_path
-        comprobante.xml_hash = xml_hash
-        comprobante.xml_version = "1.0"
-        comprobante.save(
-            update_fields=["xml_path", "xml_hash", "xml_version", "actualizado_at"])
-
-    client = DgiiClient(comprobante.empresa)
     try:
-        respuesta = client.enviar_ecf(xml_firmado)
+        respuesta, _timeout = _ejecutar_envio(comprobante)
     except DgiiClientError as exc:
-        _marcar_contingencia(comprobante_id, str(exc))
+        es_timeout = "timeout" in str(exc).lower() or "timed out" in str(exc).lower()
+        if es_timeout:
+            _marcar_contingencia(comprobante_id, str(exc))
+        else:
+            _marcar_error_red(comprobante_id, str(exc))
         raise
 
     track_id = respuesta.get("track_id") or ""
-    estado_final = respuesta.get("estado") or Comprobante.ESTADO_PROCESANDO
+    estado_dgii_final_str = respuesta.get("estado") or ""
 
     with transaction.atomic():
         comprobante = Comprobante.objects.select_for_update().get(pk=comprobante_id)
-        estado_anterior = comprobante.estado
+        estado_dgii_anterior = comprobante.estado_dgii
+
         comprobante.track_id_dgii = track_id
-        comprobante.estado = estado_final
         comprobante.intentos_envio = comprobante.intentos_envio + 1
         comprobante.ultimo_error = ""
+
+        if estado_dgii_final_str == "ACEPTADO":
+            comprobante.estado_dgii = Comprobante.ESTADO_DGII_ACEPTADO
+        elif estado_dgii_final_str == "RECHAZADO":
+            comprobante.estado_dgii = Comprobante.ESTADO_DGII_RECHAZADO
+
         comprobante.save(update_fields=[
-            "track_id_dgii",
-            "estado",
-            "intentos_envio",
-            "ultimo_error",
-            "actualizado_at",
+            "track_id_dgii", "estado_dgii",
+            "intentos_envio", "ultimo_error", "actualizado_at",
         ])
-        _crear_evento(comprobante, estado_anterior,
-                      comprobante.estado, "Envio DGII completado")
+
+        _crear_evento(comprobante, estado_dgii_anterior,
+                      comprobante.estado_dgii, "Envio DGII completado")
+
+        _crear_dgiilog_envio(comprobante, track_id, estado_dgii_final_str)
 
     from webhooks.services import disparar_webhook
-    if estado_final in (
-        Comprobante.ESTADO_ACEPTADO,
-        Comprobante.ESTADO_RECHAZADO,
+    if comprobante.estado_dgii in (
+        Comprobante.ESTADO_DGII_ACEPTADO,
+        Comprobante.ESTADO_DGII_RECHAZADO,
     ):
         disparar_webhook(
             comprobante.empresa,
-            f"comprobante.{estado_final.lower()}",
+            f"comprobante.{comprobante.estado_dgii.lower()}",
             {
                 "comprobante_id": str(comprobante.id),
                 "encf": comprobante.encf,
-                "estado": estado_final,
+                "estado": comprobante.estado_dgii,
                 "rnc": comprobante.empresa.rnc,
                 "fecha_emision": comprobante.fecha_emision.isoformat(),
             },
@@ -184,17 +206,48 @@ def emitir_ecf(comprobante_id: str, forzar_reintento=False) -> Comprobante:
     return comprobante
 
 
+def _crear_dgiilog_envio(comprobante, track_id, estado_final):
+    from dgii.models import DGIILog
+    DGIILog.objects.create(
+        empresa=comprobante.empresa,
+        comprobante=comprobante,
+        ambiente=comprobante.empresa.ambiente or "",
+        tipo_operacion="ENVIO_ECF",
+        endpoint="/Recepcion/api/FacturasElectronicas",
+        estado_respuesta=estado_final or "",
+        codigo_dgii=track_id[:50],
+        exitoso=estado_final == "ACEPTADO",
+    )
+
+
 def _marcar_contingencia(comprobante_id: str, error: str):
     with transaction.atomic():
         comprobante = Comprobante.objects.select_for_update().get(pk=comprobante_id)
         estado_anterior = comprobante.estado
+        estado_dgii_anterior = comprobante.estado_dgii
         comprobante.estado = Comprobante.ESTADO_CONTINGENCIA
+        comprobante.estado_dgii = Comprobante.ESTADO_DGII_CONTINGENCIA
         comprobante.intentos_envio = comprobante.intentos_envio + 1
         comprobante.ultimo_error = error[:2000]
-        comprobante.save(
-            update_fields=["estado", "intentos_envio", "ultimo_error", "actualizado_at"])
+        comprobante.save(update_fields=[
+            "estado", "estado_dgii", "intentos_envio", "ultimo_error", "actualizado_at",
+        ])
         _crear_evento(comprobante, estado_anterior,
                       comprobante.estado, "Contingencia DGII")
+
+
+def _marcar_error_red(comprobante_id: str, error: str):
+    with transaction.atomic():
+        comprobante = Comprobante.objects.select_for_update().get(pk=comprobante_id)
+        estado_dgii_anterior = comprobante.estado_dgii
+        comprobante.estado_dgii = Comprobante.ESTADO_DGII_ERROR_RED
+        comprobante.intentos_envio = comprobante.intentos_envio + 1
+        comprobante.ultimo_error = error[:2000]
+        comprobante.save(update_fields=[
+            "estado_dgii", "intentos_envio", "ultimo_error", "actualizado_at",
+        ])
+        _crear_evento(comprobante, estado_dgii_anterior,
+                      comprobante.estado_dgii, "Error de red DGII")
 
 
 def marcar_error_tecnico(comprobante_id: str, error: str):
@@ -224,16 +277,26 @@ def consultar_estado(comprobante_id: str) -> Comprobante:
 
     with transaction.atomic():
         comprobante = Comprobante.objects.select_for_update().get(pk=comprobante_id)
-        estado_anterior = comprobante.estado
-        comprobante.estado = estado
-        comprobante.save(update_fields=["estado", "actualizado_at"])
-        _crear_evento(comprobante, estado_anterior,
-                      comprobante.estado, "Consulta estado DGII")
+        estado_dgii_anterior = comprobante.estado_dgii
+        comprobante.estado_dgii = estado
+        comprobante.save(update_fields=["estado_dgii", "actualizado_at"])
+        _crear_evento(comprobante, estado_dgii_anterior,
+                      comprobante.estado_dgii, "Consulta estado DGII")
+
+    from dgii.models import DGIILog
+    DGIILog.objects.create(
+        empresa=comprobante.empresa,
+        comprobante=comprobante,
+        ambiente=comprobante.empresa.ambiente or "",
+        tipo_operacion="CONSULTA_ESTADO",
+        estado_respuesta=estado,
+        exitoso=estado == "ACEPTADO",
+    )
 
     from webhooks.services import disparar_webhook
     if estado in (
-        Comprobante.ESTADO_ACEPTADO,
-        Comprobante.ESTADO_RECHAZADO,
+        "ACEPTADO",
+        "RECHAZADO",
     ):
         disparar_webhook(
             comprobante.empresa,

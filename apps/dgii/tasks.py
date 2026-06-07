@@ -8,6 +8,10 @@ from webhooks.services import backoff_con_jitter
 @shared_task(bind=True, max_retries=5)
 def reintentar_envio_ecf(self, comprobante_id):
     try:
+        from comprobantes.models import Comprobante
+        comprobante = Comprobante.objects.get(pk=comprobante_id)
+        comprobante.celery_task_id = self.request.id
+        comprobante.save(update_fields=["celery_task_id"])
         emitir_ecf(comprobante_id, forzar_reintento=True)
     except Exception as exc:
         intento = min(self.request.retries, 4)

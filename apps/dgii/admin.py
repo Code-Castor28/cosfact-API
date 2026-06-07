@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .catalogs.models import Provincia, Municipio, UnidadMedida, Moneda, ImpuestoAdicional, FormaPago
+from .models import DGIILog
 
 
 @admin.register(Provincia)
@@ -38,3 +39,20 @@ class ImpuestoAdicionalAdmin(admin.ModelAdmin):
 class FormaPagoAdmin(admin.ModelAdmin):
     list_display = ["codigo", "nombre"]
     search_fields = ["nombre"]
+
+
+@admin.register(DGIILog)
+class DGIILogAdmin(admin.ModelAdmin):
+    list_display = ["empresa", "tipo_operacion", "estado_respuesta", "exitoso", "creado_at"]
+    list_filter = ["tipo_operacion", "estado_respuesta", "exitoso", "creado_at"]
+    search_fields = ["empresa__rnc", "comprobante__encf"]
+    readonly_fields = [f.name for f in DGIILog._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

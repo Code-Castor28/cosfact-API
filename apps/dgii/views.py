@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions
+from rest_framework.pagination import PageNumberPagination
 from .catalogs.models import (
     Provincia, Municipio, UnidadMedida, Moneda,
     ImpuestoAdicional, FormaPago,
@@ -6,7 +7,9 @@ from .catalogs.models import (
 from .serializers import (
     ProvinciaSerializer, MunicipioSerializer, UnidadMedidaSerializer,
     MonedaSerializer, ImpuestoAdicionalSerializer, FormaPagoSerializer,
+    DGIILogSerializer,
 )
+from .models import DGIILog
 from users.models import Usuario
 
 
@@ -63,3 +66,52 @@ class ImpuestoAdicionalViewSet(CatalogoViewSet):
 class FormaPagoViewSet(CatalogoViewSet):
     queryset = FormaPago.objects.all()
     serializer_class = FormaPagoSerializer
+
+
+class DGIILogPagination(PageNumberPagination):
+    page_size = 50
+    max_page_size = 200
+    page_size_query_param = "page_size"
+
+
+class DGIILogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = DGIILog.objects.select_related("empresa", "comprobante").all()
+    serializer_class = DGIILogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = DGIILogPagination
+    ordering = ["-creado_at"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+
+        if getattr(user, "rol", None) != Usuario.ROL_SUPERADMIN:
+            empresa = getattr(user, "empresa", None)
+            if empresa:
+                qs = qs.filter(empresa=empresa)
+            else:
+                qs = qs.none()
+        elif empresa_id := self.request.query_params.get("empresa_id"):
+            qs = qs.filter(empresa_id=empresa_id)
+
+        comprobante_id = self.request.query_params.get("comprobante_id")
+        if comprobante_id:
+            qs = qs.filter(comprobante_id=comprobante_id)
+
+        estado = self.request.query_params.get("estado")
+        if estado:
+            qs = qs.filter(estado_respuesta=estado)
+
+        tipo = self.request.query_params.get("tipo_operacion")
+        if tipo:
+            qs = qs.filter(tipo_operacion=tipo)
+
+        fecha_desde = self.request.query_params.get("fecha_desde")
+        if fecha_desde:
+            qs = qs.filter(creado_at__gte=fecha_desde)
+
+        fecha_hasta = self.request.query_params.get("fecha_hasta")
+        if fecha_hasta:
+            qs = qs.filter(creado_at__lte=fecha_hasta)
+
+        return qs

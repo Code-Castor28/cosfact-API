@@ -73,6 +73,22 @@ class DGIILog(models.Model):
     exitoso = models.BooleanField(default=False)
     duracion_ms = models.PositiveIntegerField(null=True, blank=True)
 
+    # ─── Campos nuevos Fase DGII ──────────────────────────────────────────
+    estado_respuesta = models.CharField(
+        max_length=20, blank=True,
+        choices=[
+            ("ACEPTADO", "Aceptado"),
+            ("RECHAZADO", "Rechazado"),
+            ("PENDIENTE", "Pendiente"),
+            ("TIMEOUT", "Timeout"),
+            ("ERROR_RED", "Error de red"),
+        ],
+    )
+    codigo_dgii = models.CharField(max_length=50, blank=True)
+    mensaje_dgii = models.TextField(blank=True)
+    respuesta_raw = models.JSONField(null=True, blank=True)
+    celery_task_id = models.CharField(max_length=255, blank=True)
+
     creado_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -81,6 +97,7 @@ class DGIILog(models.Model):
         verbose_name_plural = "Logs DGII"
         indexes = [
             models.Index(fields=["empresa", "tipo_operacion", "creado_at"]),
+            models.Index(fields=["empresa", "creado_at"]),
             models.Index(fields=["comprobante"]),
             models.Index(fields=["exitoso", "creado_at"]),
         ]

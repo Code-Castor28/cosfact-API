@@ -6,6 +6,7 @@ from sequences.views import SecuencialViewSet
 from subscriptions.views import PlanViewSet, SuscripcionViewSet, PaqueteComprobantesViewSet
 from pagos.views import PagoViewSet
 from clientes.api.views import ClienteViewSet
+from comprobantes.views import ComprobanteViewSet
 
 # Router central para toda la API v1
 router = DefaultRouter()
@@ -20,3 +21,4 @@ router.register(r'suscripciones', SuscripcionViewSet, basename='suscripcion')
 router.register(r'paquetes', PaqueteComprobantesViewSet, basename='paquete')
 router.register(r'pagos', PagoViewSet, basename='pago')
 router.register(r'clientes', ClienteViewSet, basename='cliente')
+router.register(r'comprobantes', ComprobanteViewSet, basename='comprobante')

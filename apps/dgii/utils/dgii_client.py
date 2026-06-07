@@ -26,10 +26,14 @@ class DgiiClient:
     def _base_url_for_ambiente(self, ambiente: str) -> str:
         return f"https://ecf.dgii.gov.do/{ambiente}"
 
-    def _log(self, tipo, endpoint, http_status=None, request_xml="", response_xml="", exitoso=False, mensaje="", duracion_ms=None):
+    def _log(self, tipo, endpoint, *, http_status=None, request_xml="", response_xml="",
+             exitoso=False, mensaje="", duracion_ms=None,
+             estado_respuesta="", codigo_dgii="", mensaje_dgii="",
+             respuesta_raw=None, celery_task_id="", comprobante=None):
         try:
             DGIILog.objects.create(
                 empresa=self.empresa,
+                comprobante=comprobante,
                 ambiente=self.ambiente,
                 tipo_operacion=tipo,
                 endpoint=endpoint,
@@ -39,6 +43,11 @@ class DgiiClient:
                 exitoso=exitoso,
                 mensaje=mensaje or "",
                 duracion_ms=duracion_ms,
+                estado_respuesta=estado_respuesta,
+                codigo_dgii=codigo_dgii,
+                mensaje_dgii=mensaje_dgii,
+                respuesta_raw=respuesta_raw,
+                celery_task_id=celery_task_id,
             )
         except Exception:
             pass
@@ -77,11 +86,17 @@ class DgiiClient:
         semilla_endpoint = "/Autenticacion/api/Autenticacion/Semilla"
         response, duracion_ms = self._request("GET", semilla_endpoint)
         if response.status_code != 200:
-            self._log("OBTENER_SEMILLA", semilla_endpoint, response.status_code, response.text, response.text, False, "Error semilla", duracion_ms)
+            self._log("OBTENER_SEMILLA", semilla_endpoint,
+                      http_status=response.status_code,
+                      request_xml=response.text, response_xml=response.text,
+                      exitoso=False, mensaje="Error semilla", duracion_ms=duracion_ms)
             raise DgiiClientError("Error obteniendo semilla DGII")
 
         semilla_xml = response.text
-        self._log("OBTENER_SEMILLA", semilla_endpoint, response.status_code, semilla_xml, response.text, True, "Semilla OK", duracion_ms)
+        self._log("OBTENER_SEMILLA", semilla_endpoint,
+                  http_status=response.status_code,
+                  request_xml=semilla_xml, response_xml=response.text,
+                  exitoso=True, mensaje="Semilla OK", duracion_ms=duracion_ms)
 
         raise DgiiClientError("ValidarSemilla no implementado en dgii_client.py")
 
@@ -94,7 +109,11 @@ class DgiiClient:
         }
         response, duracion_ms = self._request("POST", endpoint, headers=headers, data=xml_firmado)
         exitoso = response.status_code == 200
-        self._log("ENVIO_ECF", endpoint, response.status_code, xml_firmado.decode(errors="ignore"), response.text, exitoso, "", duracion_ms)
+        self._log("ENVIO_ECF", endpoint,
+                  http_status=response.status_code,
+                  request_xml=xml_firmado.decode(errors="ignore"),
+                  response_xml=response.text,
+                  exitoso=exitoso, duracion_ms=duracion_ms)
 
         if not exitoso:
             raise DgiiClientError(f"DGII envio e-CF fallo: {response.status_code}")
@@ -110,7 +129,10 @@ class DgiiClient:
         headers = {"Authorization": f"Bearer {token}"}
         response, duracion_ms = self._request("GET", endpoint, headers=headers)
         exitoso = response.status_code == 200
-        self._log("CONSULTA_ESTADO", endpoint, response.status_code, "", response.text, exitoso, "", duracion_ms)
+        self._log("CONSULTA_ESTADO", endpoint,
+                  http_status=response.status_code,
+                  response_xml=response.text,
+                  exitoso=exitoso, duracion_ms=duracion_ms)
         if not exitoso:
             raise DgiiClientError(f"DGII consulta estado fallo: {response.status_code}")
         return {
