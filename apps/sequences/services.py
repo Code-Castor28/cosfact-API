@@ -52,51 +52,56 @@ def obtener_proximo_encf(empresa, tipo_ecf: int, comprobante=None, usuario=None)
     if tipo_ecf not in TIPOS_ECF:
         raise ValueError(f"Tipo e-CF inválido: {tipo_ecf}")
 
-    with transaction.atomic():
-        try:
-            # SELECT FOR UPDATE: bloquea esta fila hasta que termine la transacción
-            secuencial = Secuencial.objects.select_for_update().get(
+    try:
+        with transaction.atomic():
+            try:
+                secuencial = Secuencial.objects.select_for_update().get(
+                    empresa=empresa,
+                    tipo_ecf=tipo_ecf,
+                )
+            except Secuencial.DoesNotExist:
+                raise TipoECFNoExisteError(
+                    f"No hay secuencial configurado para tipo {tipo_ecf} "
+                    f"en la empresa {empresa.rnc}."
+                )
+
+            if secuencial.bloqueado:
+                raise TipoECFBloqueadoError(
+                    f"El tipo {tipo_ecf} está bloqueado. "
+                    f"Motivo: {secuencial.motivo_bloqueo or 'Sin especificar'}"
+                )
+
+            proximo = secuencial.ultimo_numero + 1
+
+            if proximo > secuencial.maximo_asignado:
+                raise SecuencialAgotadoError(
+                    f"El rango de secuenciales para tipo {tipo_ecf} se ha agotado. "
+                    f"Máximo: {secuencial.maximo_asignado}."
+                )
+
+            secuencial.ultimo_numero = proximo
+            secuencial.save(update_fields=["ultimo_numero", "actualizado_at"])
+
+            encf = secuencial._formatear_encf(proximo)
+
+            MovimientoSecuencial.objects.create(
+                secuencial=secuencial,
                 empresa=empresa,
                 tipo_ecf=tipo_ecf,
-            )
-        except Secuencial.DoesNotExist:
-            raise TipoECFNoExisteError(
-                f"No hay secuencial configurado para tipo {tipo_ecf} "
-                f"en la empresa {empresa.rnc}."
-            )
-
-        if secuencial.bloqueado:
-            raise TipoECFBloqueadoError(
-                f"El tipo {tipo_ecf} está bloqueado. "
-                f"Motivo: {secuencial.motivo_bloqueo or 'Sin especificar'}"
+                numero_asignado=proximo,
+                encf_generado=encf,
+                comprobante=comprobante,
+                usuario=usuario,
             )
 
-        proximo = secuencial.ultimo_numero + 1
-
-        if proximo > secuencial.maximo_asignado:
-            # Bloquear automáticamente para que el admin lo amplíe
-            secuencial.bloqueado = True
-            secuencial.motivo_bloqueo = "Rango agotado automáticamente."
-            secuencial.fecha_bloqueo = timezone.now()
-            secuencial.save(update_fields=["bloqueado", "motivo_bloqueo", "fecha_bloqueo"])
-            raise SecuencialAgotadoError(
-                f"El rango de secuenciales para tipo {tipo_ecf} se ha agotado. "
-                f"Máximo: {secuencial.maximo_asignado}."
+            return encf
+    except SecuencialAgotadoError:
+        with transaction.atomic():
+            Secuencial.objects.filter(
+                empresa=empresa, tipo_ecf=tipo_ecf,
+            ).update(
+                bloqueado=True,
+                motivo_bloqueo="Rango agotado automáticamente.",
+                fecha_bloqueo=timezone.now(),
             )
-
-        secuencial.ultimo_numero = proximo
-        secuencial.save(update_fields=["ultimo_numero", "actualizado_at"])
-
-        encf = secuencial._formatear_encf(proximo)
-
-        MovimientoSecuencial.objects.create(
-            secuencial=secuencial,
-            empresa=empresa,
-            tipo_ecf=tipo_ecf,
-            numero_asignado=proximo,
-            encf_generado=encf,
-            comprobante=comprobante,
-            usuario=usuario,
-        )
-
-        return encf
+        raise

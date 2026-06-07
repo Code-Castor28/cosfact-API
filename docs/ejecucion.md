@@ -15,9 +15,9 @@
 | Fase 1c — Parches de Validación + Blindaje | ✅ 4/4 |
 | Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
 | Fase 3 — Deuda Técnica | ✅ 6/6 |
-| Fase 4 — Correcciones de Integración | 📋 0/3 |
+| Fase 4 — Correcciones de Integración | 📋 2/3 |
 | Fase DGII — Monitoreo y Operaciones DGII | ✅ 10/10 |
-| **Total** | **✅ 41/44** |
+| **Total** | **✅ 43/44** |
 
 ---
 
@@ -775,10 +775,10 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-## Fase 4 — Correcciones de Integración (0/3)
+## Fase 4 — Correcciones de Integración (2/3)
 > **Objetivo:** Cerrar gaps de integración entre servicios existentes donde un componente produce un resultado pero otro no lo consume. No se crea lógica nueva, solo se conectan piezas ya escritas.
 
-- [ ] 4.1 Disparar `enviar_recibo_pago` al confirmar un pago
+- [x] 4.1 Disparar `enviar_recibo_pago` al confirmar un pago
 
   **Problema:** `_confirmar_pago_internamente` en `apps/pagos/views.py:152` confirma el pago (actualiza suscripción, crea paquete e historial) pero nunca invoca `enviar_recibo_pago.delay(pago.id)`. La tarea y la plantilla HTML existen, pero el recibo nunca se envía.
 
@@ -796,7 +796,7 @@ Fase 0 (Bugs de seguridad existentes)
 
   **Impacto:** 2 líneas agregadas. Sin breaking changes.
 
-- [ ] 4.2 Endpoint REST `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
+- [x] 4.2 Endpoint REST `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
 
   **Problema:** El panel custom no tiene forma de disparar tareas como `generar_pagos_automaticos` sin esperar al cron de Beat o usar el shell manualmente.
 

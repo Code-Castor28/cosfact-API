@@ -58,7 +58,7 @@ class Secuencial(models.Model):
 
     # Si la DGII asigna rangos autorizados en el futuro
     minimo_asignado = models.PositiveIntegerField(default=1)
-    maximo_asignado = models.PositiveIntegerField(
+    maximo_asignado = models.PositiveBigIntegerField(
         default=9999999999,
         help_text="Número máximo autorizado para este tipo.",
     )

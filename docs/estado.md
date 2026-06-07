@@ -14,9 +14,9 @@
 | Fase 1c — Parches de Validación + Blindaje | 4 | 4 |
 | Fase 2 — Webhooks y Notificaciones | 9 | 9 |
 | Fase 3 — Deuda Técnica | 6 | 6 |
-| Fase 4 — Correcciones de Integración | 0 | 3 |
+| Fase 4 — Correcciones de Integración | 2 | 3 |
 | Fase DGII — Monitoreo y Operaciones DGII | 10 | 10 |
-| **Total** | **41** | **44** |
+| **Total** | **43** | **44** |
 
 ---
 
@@ -62,8 +62,8 @@
 ## 🔄 En Progreso
 
 ### Fase 4 — Correcciones de Integración
-- [ ] 4.1 Disparar `enviar_recibo_pago` desde `_confirmar_pago_internamente`
-- [ ] 4.2 Endpoint `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
+- [x] 4.1 Disparar `enviar_recibo_pago` desde `_confirmar_pago_internamente`
+- [x] 4.2 Endpoint `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
 - [ ] 4.3 Endpoints PDF (`pdf/a4/` y `pdf/80mm/`) — documentación de endpoints existentes
 
 ### Fase DGII — Monitoreo y Operaciones DGII
@@ -105,3 +105,4 @@
 | 2026-06-06 | Fase 4 | 4.3 | Documentación de endpoints PDF `pdf/a4/` y `pdf/80mm/` en `docs/ejecucion.md` |
 | 2026-06-07 | Fase DGII | — | Fase DGII creada con 10 tareas: monitoreo, consulta, reintento y emisión directa contra DGII. Separación `estado`/`estado_dgii` |
 | 2026-06-07 | Fase DGII | 1–10 | Implementación completa: modelos + migraciones + cliente DGII + servicios + tasks + serializers + views + rutas + admin |
+| 2026-06-07 | Fase 0.7 | Fixes | Arreglo de 7 fallos + 1 error en tests de secuencias e-NCF: `maximo_asignado` → `PositiveBigIntegerField`, `services.py` persiste `bloqueado=True` al agotar rango, tests actualizados a formato 13-char DGII |

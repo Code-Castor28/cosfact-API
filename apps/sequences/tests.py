@@ -40,7 +40,7 @@ class SecuencialModelTest(TestCase):
             maximo_asignado=100,
         )
         encf = s.proximo_encf()
-        self.assertEqual(encf, "E3100000001")
+        self.assertEqual(encf, "E310000000001")
         s.refresh_from_db()
         self.assertEqual(s.ultimo_numero, 0)
 
@@ -104,12 +104,12 @@ class SecuencialModelTest(TestCase):
     def test_formatear_encf(self):
         s = Secuencial(empresa=self.empresa, tipo_ecf=31)
         encf = s._formatear_encf(1)
-        self.assertEqual(encf, "E3100000001")
+        self.assertEqual(encf, "E310000000001")
 
     def test_formatear_encf_tipo_41(self):
         s = Secuencial(empresa=self.empresa, tipo_ecf=41)
         encf = s._formatear_encf(123)
-        self.assertEqual(encf, "E4100000123")
+        self.assertEqual(encf, "E410000000123")
 
     def test_unique_constraint_empresa_tipo(self):
         Secuencial.objects.create(empresa=self.empresa, tipo_ecf=31)
@@ -134,15 +134,15 @@ class SecuencialServiceTest(TestCase):
 
     def test_obtener_proximo_encf_exitoso(self):
         encf = obtener_proximo_encf(self.empresa, 31)
-        self.assertEqual(encf, "E3100000001")
+        self.assertEqual(encf, "E310000000001")
         self.secuencial.refresh_from_db()
         self.assertEqual(self.secuencial.ultimo_numero, 1)
 
     def test_obtener_proximo_encf_incrementa_secuencialmente(self):
         e1 = obtener_proximo_encf(self.empresa, 31)
         e2 = obtener_proximo_encf(self.empresa, 31)
-        self.assertEqual(e1, "E3100000001")
-        self.assertEqual(e2, "E3100000002")
+        self.assertEqual(e1, "E310000000001")
+        self.assertEqual(e2, "E310000000002")
 
     def test_obtener_proximo_encf_crea_movimiento(self):
         encf = obtener_proximo_encf(self.empresa, 31)
@@ -251,8 +251,8 @@ class SaaSGuardOnboardingTest(TestCase):
 
         data = {
             "secuencias": [
-                {"desde": "E3100000001", "hasta": "E3100000050"},
-                {"desde": "E3200000001", "hasta": "E3200000050"},
+                {"desde": "E310000000001", "hasta": "E310000000050"},
+                {"desde": "E320000000001", "hasta": "E320000000050"},
             ]
         }
         factory = APIRequestFactory()
@@ -283,7 +283,7 @@ class SaaSGuardOnboardingTest(TestCase):
 
         data = {
             "secuencias": [
-                {"desde": "E3100000001", "hasta": "E3100010000"},
+                {"desde": "E310000000001", "hasta": "E310000010000"},
             ]
         }
         factory = APIRequestFactory()
@@ -298,28 +298,28 @@ class SaaSGuardOnboardingTest(TestCase):
     def test_secuencia_item_formato_invalido(self):
         from sequences.serializers import SecuenciaItemSerializer
         serializer = SecuenciaItemSerializer(data={
-            "desde": "INVALIDO", "hasta": "E3100000050"
+            "desde": "INVALIDO", "hasta": "E310000000050"
         })
         self.assertFalse(serializer.is_valid())
 
     def test_secuencia_item_desde_mayor_hasta_error(self):
         from sequences.serializers import SecuenciaItemSerializer
         serializer = SecuenciaItemSerializer(data={
-            "desde": "E3100000050", "hasta": "E3100000001"
+            "desde": "E310000000050", "hasta": "E310000000001"
         })
         self.assertFalse(serializer.is_valid())
 
     def test_secuencia_item_tipos_distintos_error(self):
         from sequences.serializers import SecuenciaItemSerializer
         serializer = SecuenciaItemSerializer(data={
-            "desde": "E3100000001", "hasta": "E3200000050"
+            "desde": "E310000000001", "hasta": "E320000000050"
         })
         self.assertFalse(serializer.is_valid())
 
     def test_secuencia_item_valido(self):
         from sequences.serializers import SecuenciaItemSerializer
         serializer = SecuenciaItemSerializer(data={
-            "desde": "E3100000001", "hasta": "E3100000050"
+            "desde": "E310000000001", "hasta": "E310000000050"
         })
         self.assertTrue(serializer.is_valid())
         self.assertEqual(serializer.validated_data["volumen"], 50)
