@@ -9,7 +9,7 @@ Cambios principales:
 - Logs temporales de diagnóstico añadidos para plan/ciclo/precios.
 - fix de la github accion para mejorar el flujo de despliegues
 -mejor en la app de pagos
-- fix de pdf
+- fix de pdf121
 
 
 Incluye tests unitarios que cubren generación para ciclos `MENSUAL` y `ANUAL`.
