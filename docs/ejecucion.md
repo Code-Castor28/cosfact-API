@@ -16,7 +16,8 @@
 | Fase 2 — Webhooks y Notificaciones | ✅ 9/9 |
 | Fase 3 — Deuda Técnica | ✅ 6/6 |
 | Fase 4 — Correcciones de Integración | 📋 0/3 |
-| **Total** | **✅ 31/34** |
+| Fase DGII — Monitoreo y Operaciones DGII | ✅ 10/10 |
+| **Total** | **✅ 41/44** |
 
 ---
 
@@ -893,5 +894,39 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-*Versión: 2.1.0 — Añadida Fase 4 el 6 de junio de 2026*
+## Fase DGII — Monitoreo y Operaciones DGII (10/10)
+> **Objetivo:** Construir la capa de monitoreo, consulta y operación manual sobre la comunicación con DGII. Separar el ciclo de vida interno del comprobante del veredicto fiscal de DGII mediante `estado_dgii`.
+
+- [x] DGII.1 Agregar campos a `DGIILog` (`estado_respuesta`, `codigo_dgii`, `mensaje_dgii`, `respuesta_raw`, `celery_task_id`) + índice compuesto `(empresa, creado_at)`
+
+- [x] DGII.2 Agregar campos a `Comprobante` (`estado_dgii` con máquina de estados + `celery_task_id`) + agregar `EMITIDO` a choices de `estado` con transición `BORRADOR → EMITIDO`
+
+- [x] DGII.3 Actualizar `DgiiClient._log()` en `dgii/utils/dgii_client.py` — ampliar firma con parámetros nuevos, actualizar los 5 call sites para llenar `comprobante` FK y campos nuevos
+
+- [x] DGII.4 Refactor `emitir_ecf()` y `consultar_estado()` en `apps/dgii/services.py`:
+  - Extraer `_ejecutar_envio()` con lógica pura XML + firma + HTTP
+  - `emitir_ecf` maneja estados según tabla: DGII acepta → `estado_dgii=ACEPTADO`, timeout → ambos CONTINGENCIA, error red → `ERROR_RED`
+  - `consultar_estado` actualiza `estado_dgii` y crea `DGIILog` con `comprobante` FK
+
+- [x] DGII.5 Actualizar `reintentar_envio_ecf` en `apps/dgii/tasks.py` — guardar `celery_task_id` antes de emitir
+
+- [x] DGII.6 Crear `DGIILogSerializer` en `apps/dgii/serializers.py` exponiendo campos viejos + nuevos + `empresa_rnc`, `comprobante_encf`, `tipo_operacion_display`
+
+- [x] DGII.7 Agregar `estado_dgii` y `celery_task_id` a `read_only_fields` en `ComprobanteCreateSerializer`
+
+- [x] DGII.8 Crear `DGIILogViewSet` (read-only) en `apps/dgii/views.py` con filtros por comprobante, estado, tipo_operacion, fecha — tenant ve solo su empresa, superadmin ve todo — paginación 50 default, máx 200
+
+- [x] DGII.9 Agregar 3 `@action` a `ComprobanteViewSet`:
+  - `POST consultar-dgii/` — síncrono, timeout 15s, verifica `estado_dgii != SIN_ENVIAR`
+  - `POST reintentar/` — asíncrono `202`, `select_for_update()`, solo `ERROR_RED` o `CONTINGENCIA`
+  - `POST emitir/` — síncrono bloqueante 30s, solo `SIN_ENVIAR` o `PENDIENTE`
+
+- [x] DGII.10 Registrar rutas:
+  - `DGIILogViewSet` en `apps/dgii/urls.py` como `dgii/logs/`
+  - `ComprobanteViewSet` en `core/api_router.py` como `comprobantes/`
+  - `DGIILogAdmin` read-only en `apps/dgii/admin.py`
+
+---
+
+*Versión: 2.2.0 — Añadida Fase DGII (10 tareas) el 7 de junio de 2026*
 *Basado en: Hallazgos del análisis de implementación vs ARCHITECTURE.md*

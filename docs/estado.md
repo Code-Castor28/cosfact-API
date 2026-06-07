@@ -1,5 +1,5 @@
 # Estado de Ejecución — DerejFactAPI
-> Actualizado: 2 de junio de 2026
+> Actualizado: 7 de junio de 2026
 > Referencia: `docs/ejecucion.md` v2.0.0
 
 ---
@@ -15,7 +15,8 @@
 | Fase 2 — Webhooks y Notificaciones | 9 | 9 |
 | Fase 3 — Deuda Técnica | 6 | 6 |
 | Fase 4 — Correcciones de Integración | 0 | 3 |
-| **Total** | **31** | **34** |
+| Fase DGII — Monitoreo y Operaciones DGII | 10 | 10 |
+| **Total** | **41** | **44** |
 
 ---
 
@@ -65,6 +66,18 @@
 - [ ] 4.2 Endpoint `POST /api/v1/tasks/run/` para ejecutar tareas Celery manualmente
 - [ ] 4.3 Endpoints PDF (`pdf/a4/` y `pdf/80mm/`) — documentación de endpoints existentes
 
+### Fase DGII — Monitoreo y Operaciones DGII
+- [x] DGII.1 Agregar campos a `DGIILog`
+- [x] DGII.2 Agregar campos a `Comprobante` + `EMITIDO`
+- [x] DGII.3 Actualizar `DgiiClient._log()`
+- [x] DGII.4 Refactor `emitir_ecf()` y `consultar_estado()`
+- [x] DGII.5 Actualizar `reintentar_envio_ecf` en tasks
+- [x] DGII.6 Crear `DGIILogSerializer`
+- [x] DGII.7 Actualizar `ComprobanteCreateSerializer`
+- [x] DGII.8 Crear `DGIILogViewSet`
+- [x] DGII.9 Agregar 3 `@action` a `ComprobanteViewSet`
+- [x] DGII.10 Registrar rutas + admin
+
 ### Fase 3 — Deuda Técnica
 - ✅ 3.1 `CleanModelSerializer` con `partial=True`
 - ✅ 3.2 HMAC con `id` y `creado_at`
@@ -90,3 +103,5 @@
 | 2026-06-06 | Fase 4 | 4.1 | Plan y corrección: `enviar_recibo_pago.delay(pago.id)` desde `_confirmar_pago_internamente` |
 | 2026-06-06 | Fase 4 | 4.2 | Plan: endpoint `POST /api/v1/tasks/run/` para disparar tareas Celery manualmente |
 | 2026-06-06 | Fase 4 | 4.3 | Documentación de endpoints PDF `pdf/a4/` y `pdf/80mm/` en `docs/ejecucion.md` |
+| 2026-06-07 | Fase DGII | — | Fase DGII creada con 10 tareas: monitoreo, consulta, reintento y emisión directa contra DGII. Separación `estado`/`estado_dgii` |
+| 2026-06-07 | Fase DGII | 1–10 | Implementación completa: modelos + migraciones + cliente DGII + servicios + tasks + serializers + views + rutas + admin |
