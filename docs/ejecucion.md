@@ -1,6 +1,6 @@
 # Plan de Ejecución: DerejFactAPI
 > Estrategia: Seguridad → Estabilidad → Construcción limpia
-> Fecha base: 2 de junio de 2026
+> Fecha base: 2 de junio de 2026 · Última actualización: 19 de noviembre de 2026
 > Referencia: `ARCHITECTURE.md` v1.0.0 + Hallazgos del análisis
 
 ---
@@ -18,7 +18,8 @@
 | Fase 4 — Correcciones de Integración | 📋 2/3 |
 | Fase DGII — Monitoreo y Operaciones DGII | ✅ 10/10 |
 | Tests de Firmado XML | ✅ 5/5 |
-| **Total** | **✅ 48/49** |
+| Documentación — Estudio Técnico | ✅ 1/1 |
+| **Total** | **✅ 49/50** |
 
 ---
 
@@ -967,5 +968,76 @@ Fase 0 (Bugs de seguridad existentes)
 
 ---
 
-*Versión: 2.4.0 — Alineación de XML al XSD oficial DGII (5 tareas) el 7 de junio de 2026*
+## Documentación — Estudio Técnico (1/1)
+> **Objetivo:** Dejar un documento de referencia para colaboradores nuevos que describa el sistema real (código, no aspiraciones) y sirva de base para detectar deuda técnica.
+
+- [x] DOC.1 Crear `docs/studio.md` con:
+  - Resumen ejecutivo y progreso real vs. documentado
+  - Stack, arquitectura y mapa de apps
+  - Modelo de datos (identidad, comercial, fiscal, operación)
+  - Autenticación (JWT + API Key) y scopes reales
+  - Inventario completo de endpoints con ejemplos `curl` y respuestas
+  - Máquinas de estado `estado` y `estado_dgii` con sus transiciones
+  - Capítulo profundo de la app `dgii`: emisión, XML, firma, cliente HTTP, consulta, reintentos, bitácora y catálogos
+  - Tareas Celery/Beat, pagos, webhooks y notificaciones
+  - Pruebas, CI, hallazgos críticos, estado de la documentación y glosario
+  - Anexos: matriz de permisos y checklist de onboarding
+
+**Resultados:** documento único de referencia con el estado real del proyecto y los 18 hallazgos críticos consolidados.
+
+---
+
+## Plan de Corrección Fiscal (CF) — Encargo 2026-11-19
+
+> **Objetivo:** Corregir los defectos fiscales identificados en la auditoría de `docs/studio.md` (§13–§14), por fases y con evidencia ejecutable.
+> **Regla:** Ninguna tarea se marca `[x]` sin `manage.py check` limpio y tests de la tarea en verde.
+> **Fuente de verdad XML/DGII:** `docs/dgii/` (XSD y PDFs oficiales). Mientras no exista, las tareas afectadas quedan `BLOQUEADO`.
+
+### CF.0.0 — Preparación del entorno de verificación
+- [x] `pytest.ini` con `DJANGO_SETTINGS_MODULE` y descubrimiento de `tests.py` + `test_*.py`
+- [x] `pytest-django==4.12.0` en `requirements.txt`
+- [x] `xmlsec==1.3.17` declarado en `requirements.txt` (no estaba)
+- [x] `tests/fixtures/test_pin.txt` creado (lo exigía `tests/dgii/conftest.py`)
+- [x] Clamp en `backoff_con_jitter()` → sin `IndexError`
+- [x] Test de webhooks usa códigos de evento, no tuplas
+- [x] Los 3 tests de `users` apuntan a `/api/v1/usuarios/` y esperan 403 con API Key
+- [ ] Venv Linux reproducible creado e instalado (`venv_linux/`)
+- [ ] Suite completa en verde como línea base
+
+### CF.0 — Seguridad
+- [ ] CF.0.1 Scopes fail-closed con mapa `(método, ruta) → scope`
+- [ ] CF.0.2 Inmutabilidad: guardas de API (409) + trigger por columnas fiscales
+- [ ] CF.0.3 `recover-password` con token de un solo uso y respuesta uniforme
+- [ ] CF.0.4 `AuditLog` firma antes del INSERT (trigger append-only)
+
+### CF.1 — Máquina de estados fiscal
+- [ ] CF.1.1 `aplicar_resultado_dgii()` atómica e idempotente; enums nuevos; migración de datos
+- [ ] CF.1.2 Parser tolerante JSON/XML; `mensajes_dgii`; `codigo_dgii` correcto; un log por envío
+- [ ] CF.1.3 Timeout → `INCIERTO`; consulta previa al reenvío; reintentables vs no reintentables
+- [ ] CF.1.4 Polling 5 s / 30 s / 2 min / 10 min / 1 h + alerta 24 h
+
+### CF.2 — Autenticación, firma y XML (bloqueada por `docs/dgii/`)
+- [ ] CF.2.1 `ValidarSemilla` + envío multipart — **BLOQUEADO**
+- [ ] CF.2.2 Firma C14N inclusiva, `URI=""`, código de seguridad, vigencia del certificado
+- [ ] CF.2.3 Builder alineado al XSD, serializer ampliado — **parcialmente BLOQUEADO**
+- [ ] CF.2.4 Resumen Factura de Consumo (RFCE) — **BLOQUEADO**
+
+### CF.3 — Operación fiscal
+- [ ] CF.3.1 `NumeroViciado` en saltos/pérdidas; ANECF **BLOQUEADO**
+- [ ] CF.3.2 Error técnico vs contingencia; plazos configurables
+- [ ] CF.3.3 Almacenamiento abstracto de XML + verificación SHA-256
+- [ ] CF.3.4 QR/timbre — **BLOQUEADO**
+
+### CF.4 — Correcciones secundarias
+- [ ] CF.4.1 Webhooks (constante de intentos, HMAC con secreto original)
+- [ ] CF.4.2 Notificaciones con campos reales
+- [ ] CF.4.3 Pagos: transacción, `onboarding_bloqueado`, unicidad, `fecha_corte`
+- [ ] CF.4.4 Montar `sequences.urls`
+- [ ] CF.4.5 Seed de municipios completo desde `docs/tablas_dgii.md`
+- [ ] CF.4.6 CI con PostgreSQL y tests
+- [ ] CF.4.7 Django 5.2 LTS en rama aparte
+
+---
+
+*Versión: 2.6.0 — Plan de corrección fiscal abierto el 19 de noviembre de 2026*
 *Basado en: Hallazgos del análisis de implementación vs ARCHITECTURE.md*

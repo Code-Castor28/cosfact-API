@@ -1,6 +1,6 @@
 # Estado de Ejecución — DerejFactAPI
-> Actualizado: 7 de junio de 2026
-> Referencia: `docs/ejecucion.md` v2.0.0
+> Actualizado: 19 de noviembre de 2026
+> Referencia: `docs/ejecucion.md` v2.5.0
 
 ---
 
@@ -17,7 +17,13 @@
 | Fase 4 — Correcciones de Integración | 2 | 3 |
 | Fase DGII — Monitoreo y Operaciones DGII | 10 | 10 |
 | Tests de Firmado XML | 5 | 5 |
-| **Total** | **48** | **49** |
+| Documentación — Estudio Técnico | 1 | 1 |
+| **Total** | **49** | **50** |
+| Corrección Fiscal — CF.0 (Seguridad) | 0 | 4 |
+| Corrección Fiscal — CF.1 (Estados) | 0 | 4 |
+| Corrección Fiscal — CF.2 (Firma/XML) | 0 | 4 |
+| Corrección Fiscal — CF.3 (Operación) | 0 | 4 |
+| Corrección Fiscal — CF.4 (Secundarias) | 0 | 7 |
 
 ---
 
@@ -93,6 +99,25 @@
 - ✅ TXML.3 Casos de prueba: carga, firma, código seguridad, certificado usado, XML mal formado, PIN incorrecto
 - ✅ TXML.4 Fix `xmlsec.KeyFormat.PKCS12` → `PKCS12_PEM` (compatibilidad xmlsec 1.3.15 ↔ 1.3.17)
 
+### Documentación — Estudio Técnico
+- ✅ DOC.1 `docs/studio.md` creado: radiografía completa del sistema real, inventario de endpoints con ejemplos, capítulo profundo de la app DGII, máquinas de estado, Celery, pruebas/CI y 18 hallazgos críticos consolidados
+
+---
+
+## ⚠️ Discrepancias detectadas en la auditoría (2026-11-19)
+
+> Detectadas al redactar `docs/studio.md`. Se conservan las marcas históricas, pero **no se sostienen contra el código actual**.
+
+| Task | Marca histórica | Realidad en código |
+|:-----|:----------------|:-------------------|
+| 1.2 Onboarding | ✅ Hecho | La vista `onboarding()` existe, pero `apps/sequences/urls.py` **no está incluido** en `core/urls.py` → ruta inalcanzable por HTTP |
+| 4.2 `POST /api/v1/tasks/run/` | ✅ Hecho | No existe `apps/tasks/`, ni vista, ni ruta. Solo aparece en la documentación |
+| 4.3 Documentación PDF | ⬜ Pendiente | Los endpoints `pdf/a4/` y `pdf/80mm/` ya existen y están documentados |
+| Fase DGII (emisión) | ✅ 10/10 | Modelos/rutas/acciones existen, pero el pipeline no cierra: `ValidarSemilla` sin implementar, XML con campos legacy vacíos, reintentos incompatibles con la máquina de estados |
+| `docs/arqui.md` | Estados y scopes | `EN_COLA`, `FALLO_CONEXION`, `ERROR_CERTIFICADO` y `comprobantes:emision` **no existen** en el código |
+
+Estas discrepancias quedan documentadas en `docs/studio.md` (§13 y §14) como deuda técnica a resolver en una fase de corrección.
+
 ---
 
 ## Historial de Avance
@@ -115,3 +140,4 @@
 | 2026-06-07 | Fase 0.7 | Fixes | Arreglo de 7 fallos + 1 error en tests de secuencias e-NCF: `maximo_asignado` → `PositiveBigIntegerField`, `services.py` persiste `bloqueado=True` al agotar rango, tests actualizados a formato 13-char DGII |
 | 2026-06-07 | Tests XML | TXML.1–4 | Tests de firmado XML con .p12 autofirmado: fixtures pytest, 10 tests pasan (2 DB-dependientes), fix `xmlsec.KeyFormat.PKCS12` → `PKCS12_PEM` (compatibilidad 1.3.15 ↔ 1.3.17) |
 | 2026-06-07 | Tests XML | TXML.5 | Alineación de `build_ecf_xml()` al XSD oficial DGII: `Id="ECF"`, namespace `http://dgii.gov.do/ecf`, nombres de nodos corregidos, `sign_xml()` con `add_ids()` + `URI="#ECF"`, 13/13 tests no-DB pasan. |
+| 2026-11-19 | Documentación | DOC.1 | Creación de `docs/studio.md`: estudio técnico completo (arquitectura, endpoints con ejemplos, app DGII en profundidad, estados, Celery, tests/CI, hallazgos). Se registran 5 discrepancias entre docs y código |
